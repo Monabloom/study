@@ -534,8 +534,7 @@ async function today() {
       ${listenLinks().length ? `<div style="margin-top:12px">${listenLinks().map(l => `<a class="task" href="${esc(l.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:var(--ink)"><span class="lbl">📺 ${esc(l.name)}</span><span class="btn soft sm">去看</span></a>`).join('')}</div>`
         : '<div class="warn" style="margin-top:12px">请家长先在「家长」页添加英文故事链接</div>'}
       ${retellBox()}
-      <div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn sm" id="recBtn">${recState.on ? '■ 说完了' : '🎙 开始录'}</button>
-        ${recState.url ? '<button class="btn soft sm" id="playBtn">▶ 听听我说的</button>' : ''}</div></div>`;
+      </div>`;
   }
   if (c.day) x += `<div class="card"><div class="mini"><div class="ic" style="background:var(--pri-soft)">🔤</div>
       <div style="flex:1"><h2>单词 Day ${c.day}</h2><div class="sub">${esc(c.topics)}</div></div>
@@ -555,10 +554,21 @@ async function today() {
   });
   app.innerHTML = x;
 
-  if ($('#recBtn')) $('#recBtn').onclick = toggleRec;
   $$('[data-lv]').forEach(b => b.onclick = () => { retellLv = +b.dataset.lv; render(); });
   $$('[data-sayw]').forEach(b => b.onclick = () => sayEn(b.dataset.sayw));
-  if ($('#playBtn')) $('#playBtn').onclick = () => { try { new Audio(recState.url).play(); } catch (e) { toast('播放不了'); } };
+  let rTarget = null;
+  const rFill = (k, text) => { retellSaid[retellLv + '-' + k] = text; toast('说得好！👍'); render(); };
+  $$('[data-rmic]').forEach(b => b.onclick = async () => {
+    const k = +b.dataset.rmic;
+    b.textContent = '●'; b.style.background = 'var(--warn)'; b.style.color = '#fff';
+    try { const alts = await listen('en-US'); rFill(k, alts[0]); }
+    catch (err) {
+      b.textContent = '🎤'; b.style.background = ''; b.style.color = '';
+      if (err === 'nospeech' || err === 'no-speech' || err === 'aborted') toast('没听清，再说一次');
+      else { toast('这里用不了语音，请用键盘上的 🎤'); rTarget = k; $('#rIn').hidden = false; $('#rIn input').focus(); }
+    }
+  });
+  if ($('#rGo')) $('#rGo').onclick = () => { const v = $('#rIn input').value.trim(); if (v && rTarget !== null) rFill(rTarget, v); };
   $('#prev').onclick = () => { state.date = addDays(state.date, -1); render(); };
   if ($('#next')) { $('#next').onclick = () => { state.date = addDays(state.date, 1); render(); }; $('#tod').onclick = () => { state.date = todayIso(); render(); }; }
   if ($('#claimDaily')) $('#claimDaily').onclick = () => go('rewards');
@@ -594,12 +604,19 @@ const WORDS = [
   ['地方', [['a mountain', '山'], ['a cave', '山洞'], ['a river', '河'], ['the sky', '天上']]],
 ];
 let retellLv = 0;
+const retellSaid = {};   // {'难度-行': 识别出的句子}
 function retellBox() {
   const [, rows] = RETELL[retellLv];
   return `<div style="margin-top:14px;background:var(--bg);border-radius:16px;padding:14px">
-    <div class="row between"><b>看完说一说</b><span class="faint">说一句就算完成，可以中英夹杂</span></div>
+    <div class="row between"><b>看完说一说</b><span class="faint">点 🎤 说，说一句就算完成</span></div>
     <div class="seg" style="margin:10px 0;box-shadow:none">${RETELL.map(([t], k) => `<button data-lv="${k}" class="${k === retellLv ? 'on' : ''}">${t}</button>`).join('')}</div>
-    ${rows.map(([q, eg]) => `<div style="padding:6px 0"><b style="font-size:16px">${esc(q)}</b><br><span class="faint">${esc(eg)}</span></div>`).join('')}
+    ${rows.map(([q, eg], k) => { const s = retellSaid[retellLv + '-' + k];
+      return `<div style="padding:8px 0;display:flex;gap:10px;align-items:center"><div style="flex:1">
+        <b style="font-size:16px">${esc(q)}</b>
+        ${s ? `<div style="color:var(--ok);font-weight:700;font-size:16px;margin-top:2px">🗣 ${esc(s)}</div>` : ''}
+        <div class="faint">例：${esc(eg)}</div></div>
+        <button class="say" data-rmic="${k}" style="background:var(--ok-soft);color:var(--ok)">🎤</button></div>`; }).join('')}
+    <div class="row" style="margin-top:4px" hidden id="rIn"><input placeholder="点键盘 🎤 说英文，或打字" style="padding:8px 10px;font-size:15px"><button class="btn sm" id="rGo">填进去</button></div>
     <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--pri);font-weight:700;font-size:14px">词语提示板（点词听发音）</summary>
       ${WORDS.map(([g, ws]) => `<div class="faint" style="margin-top:10px">${g}</div>` + ws.map(([en, zh]) => `<span class="pill" data-sayw="${esc(en)}">${esc(en)} <span class="faint">${zh}</span></span>`).join('')).join('')}
     </details></div>`;
@@ -662,7 +679,7 @@ async function words() {
   const m = state.mode;
   if (quiz._k !== day + m) quiz = {_k: day + m};
   const testing = m !== 'all';
-  const res = Object.entries(quiz).filter(([k]) => k !== '_k');
+  const res = Object.entries(quiz).filter(([k]) => /^\d+$/.test(k));
   const okN = res.filter(([, v]) => v !== 'no').length, wrong = res.filter(([, v]) => v === 'no').map(([k]) => card.words[k]);
   let x = `<div class="row between" style="margin-top:6px"><div><div class="sub">${esc(card.topics)}</div><h1>Day ${day}</h1></div>
       <span class="tag" style="${meta.learned ? 'background:var(--ok-soft);color:var(--ok)' : ''}">${meta.learned ? '已背 ' + meta.learned.slice(5).replace('-', '/') : day === list.current ? '今天要背' : '未背'}</span></div>
@@ -675,11 +692,16 @@ async function words() {
     <div class="card" style="padding:4px 16px">` +
     card.words.map((w, i) => {
       const r = quiz[i];
-      const mark = r === 'no' ? '<span style="color:var(--warn);font-weight:800">✗</span>' : r === 'spell' ? '<span style="color:var(--ok);font-weight:800">✓拼对</span>' : r ? '<span style="color:var(--ok);font-weight:800">✓</span>' : '';
+      const mark = r === 'no' ? '<span style="color:var(--warn);font-weight:800">✗</span>' : r === 'spell' ? '<span style="color:var(--ok);font-weight:800">✓</span>' : r ? '<span style="color:var(--ok);font-weight:800">✓</span>' : '';
+      const said = quiz['h' + i], col = r === 'no' ? 'var(--warn)' : 'var(--ok)';
       const hideEn = m === 'en' && !r, hideZh = m === 'zh' && !r;
+      const enCell = m === 'en' && r ? `<b style="color:${col}">${esc(said)}${r === 'spell' ? ' <span class="tag" style="background:var(--ok-soft);color:var(--ok);vertical-align:middle">拼对</span>' : ''}</b><span>${r === 'no' ? '正确：' : ''}${esc(w.w)} ${esc(w.ipa)}</span>`
+        : `<b class="${hideEn ? 'mask' : ''}" data-rev>${esc(w.w)}</b><span class="${hideEn ? 'mask' : ''}" data-rev>${esc(w.ipa)}</span>`;
+      const zhCell = m === 'zh' && r ? `<span style="color:${col};font-weight:700">${esc(said)}</span><div class="faint" style="margin-top:2px">${r === 'no' ? '正确：' : ''}${esc(w.zh)}${r === 'no' ? ` · <a href="#" data-fix="${i}" style="color:var(--pri)">我其实对了</a>` : ''}</div>`
+        : `<span class="${hideZh ? 'mask' : ''}" data-rev>${esc(w.zh)}</span>`;
       return `<div class="wrow" id="w${i}"><span class="n">${mark || i + 1}</span>
-      <div class="en"><b class="${hideEn ? 'mask' : ''}" data-rev>${esc(w.w)}</b><span class="${hideEn ? 'mask' : ''}" data-rev>${esc(w.ipa)}</span></div>
-      <div class="zh"><span class="${hideZh ? 'mask' : ''}" data-rev>${esc(w.zh)}</span>${quiz['h' + i] ? `<div class="faint" style="margin-top:2px">你说的：${esc(quiz['h' + i])}${r === 'no' ? ` <a href="#" data-fix="${i}" style="color:var(--pri)">我其实对了</a>` : ''}</div>` : ''}
+      <div class="en">${enCell}</div>
+      <div class="zh">${zhCell}
         <div class="row" style="margin-top:6px" hidden data-in="${i}"><input placeholder="点键盘 🎤 说，或打字" style="padding:8px 10px;font-size:15px"><button class="btn sm" data-go="${i}">对答案</button></div></div>
       <div class="row" style="gap:6px">${m !== 'en' ? `<button class="say" data-say="${esc(w.w)}">🔊</button>` : ''}${testing ? `<button class="say" data-mic="${i}" style="background:var(--ok-soft);color:var(--ok)">🎤</button>` : ''}</div></div>`;
     }).join('') +
@@ -694,8 +716,9 @@ async function words() {
   const judge = (i, alts) => {
     const w = card.words[i];
     const r = m === 'zh' ? (judgeZh(alts, w.zh) ? 'ok' : 'no') : (judgeEn(alts, w.w) || 'no');
-    quiz[i] = r; quiz['h' + i] = alts[0];
-    toast(r === 'no' ? '再想想～答案已经显示' : r === 'spell' ? '拼对了！👏' : '对了！👍');
+    quiz[i] = r;
+    quiz['h' + i] = m === 'en' && /^([a-z][\s\-.,]+){2,}[a-z]\W*$/i.test(alts[0].trim()) ? alts[0].trim().replace(/[\s.,]+/g, '-').replace(/-+/g, '-').toLowerCase() : alts[0];
+    toast(r === 'no' ? '差一点～看看正确答案' : r === 'spell' ? '拼对了！👏' : '对了！👍');
     render();
   };
   const showInput = i => { const el = document.querySelector(`[data-in="${i}"]`); el.hidden = false; el.querySelector('input').focus(); };
