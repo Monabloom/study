@@ -55,14 +55,23 @@ h2{font-size:17px;margin:0;font-weight:700;letter-spacing:-.01em}
 .unlock .ic{font-size:26px}
 .unlock b{display:block;font-size:15px}
 .unlock small{opacity:.8;font-size:13px}
-/* week dots */
-.week{display:flex;gap:8px;margin-top:12px}
-.week div{flex:1;text-align:center;font-size:12px;color:var(--sub)}
-.week i{display:block;height:36px;border-radius:12px;margin-bottom:4px;background:var(--bg);display:grid;place-items:center;font-style:normal;font-weight:800;color:var(--faint)}
-.week .full i{background:var(--ok);color:#fff}
-.week .miss i{background:var(--warn-soft);color:var(--warn)}
-.week .today i{outline:2px solid var(--pri);outline-offset:-2px;color:var(--pri)}
-.week .skip i{opacity:.35}
+/* week timeline */
+.week{display:flex;justify-content:space-between;position:relative;margin-top:16px}
+.week:before{content:'';position:absolute;left:24px;right:24px;top:21px;height:3px;border-radius:3px;background:var(--line)}
+.week div{position:relative;width:46px;text-align:center;font-size:12px;color:var(--faint);font-weight:600}
+.week i{width:44px;height:44px;border-radius:50%;margin:0 auto 6px;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:16px;background:var(--card);border:2.5px solid var(--line);color:var(--faint)}
+.week .full i{background:var(--ok);border-color:var(--ok);color:#fff}
+.week .full{color:var(--ok)}
+.week .miss i{background:var(--warn-soft);border-color:var(--warn-soft);color:var(--warn)}
+.week .today i{border-color:var(--pri);color:var(--pri);box-shadow:0 0 0 4px var(--pri-soft)}
+.week .today{color:var(--pri)}
+.week .skip i{border-style:dashed}
+/* tiles */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.tile{background:var(--bg);border-radius:16px;padding:14px;text-decoration:none;color:var(--ink);display:flex;flex-direction:column;justify-content:space-between;gap:8px;min-height:88px}
+.tile b{font-size:15px;line-height:1.35}
+.tile span{font-size:12px;color:var(--pri);font-weight:700}
+.sheet .row .btn.block{flex:1;width:auto}
 /* tasks */
 .task{display:flex;align-items:center;gap:14px;padding:13px 2px;cursor:pointer;user-select:none}
 .task+.task{border-top:1px solid var(--line)}
@@ -463,10 +472,13 @@ LOCAL['GET /api/claims'] = () => Object.entries(DATA.claims).map(([key, v]) => (
 function listenLinks() {
   const st = settings();
   if (!st.listenLinks) { st.listenLinks = st.listenUrl ? [{name: st.listenName || '西游英语', url: st.listenUrl}] : []; }
+  const bad = l => /#setup=|monabloom\.github\.io|127\.0\.0\.1/.test(l.url);
+  if (st.listenLinks.some(bad)) { st.listenLinks = st.listenLinks.filter(l => !bad(l)); save(); }
   return st.listenLinks;
 }
 LOCAL['POST /api/listen'] = b => {
   if (String(b.pin) !== String(pin())) return {error: '家长密码不对'};
+  if (/#setup=/.test(String(b.url || ''))) return applySetupCode(b.url) ? {ok: true, imported: true} : {error: '链接包不完整，请重新复制整条'};
   const url = String(b.url || '').match(/https?:\/\/\S+/);
   if (!url) return {error: '没找到链接，请把抖音"复制链接"的内容整段粘贴'};
   const name = String(b.name || '').trim();
@@ -545,13 +557,15 @@ function ring(done, total) {
     <div class="num"><div><b>${done}</b><span>/${total}</span><br><span>已完成</span></div></div></div>`;
 }
 function weekDots(w) {
-  return `<div class="week">${w.days.map(d => `<div class="${d.state}"><i>${d.state === 'full' ? '✓' : d.state === 'miss' ? '×' : ''}</i>周${d.label}</div>`).join('')}</div>`;
+  return `<div class="week">${w.days.map(d => `<div class="${d.state}"><i>${d.state === 'full' ? '✓' : d.state === 'miss' ? '✕' : d.label}</i>${d.state === 'today' ? '今天' : '周' + d.label}</div>`).join('')}</div>
+    <div class="row between" style="margin-top:12px"><span class="faint">已完成 ${w.fullCount}/${w.total} 天</span><span class="faint">周六、周日兑现</span></div>
+    <div class="bar" style="margin-top:6px"><i style="width:${w.total ? w.fullCount / w.total * 100 : 0}%"></i></div>`;
 }
 function weekText(w, date) {
   if (w.claimed) return '本周 1 小时游戏已兑现 🎉';
   if (w.unlocked) return isoWeekday(date) >= 6 ? '周一到周五全部完成！周末 1 小时游戏可以用啦' : '已解锁！周六、周日可以用';
   if (w.broken) return '本周有一天没完成，下周一重新开始，加油';
-  return `周一到周五每天全部完成，周末多玩 1 小时（已完成 ${w.fullCount}/${w.total} 天）`;
+  return '周一到周五，每天必做全完成，周末多玩 1 小时';
 }
 
 /* ---------- 今天 ---------- */
@@ -589,12 +603,14 @@ async function today() {
   const lt = d.tasks.find(t => t.id === 'listen');
   if (lt) {
     const st = settings();
+    const tile = l => `<a class="tile" href="${esc(l.url)}" target="_blank" rel="noopener"><b>${l.cat === 'fun' ? '🌟' : '🎬'} ${esc(l.name)}</b><span>去看 ›</span></a>`;
+    const en = listenLinks().filter(l => l.cat !== 'fun'), fun = listenLinks().filter(l => l.cat === 'fun');
+    x += `<div class="card"><div class="row between"><h2>🎬 英文动画</h2><span class="faint">${en.length} 个</span></div>
+      ${en.length ? `<div class="tiles">${en.slice(0, 6).map(tile).join('')}</div>${en.length > 6 ? `<details><summary style="cursor:pointer;color:var(--pri);font-weight:700;font-size:14px;margin-top:12px">更多（${en.length - 6}）</summary><div class="tiles">${en.slice(6).map(tile).join('')}</div></details>` : ''}`
+        : '<div class="warn" style="margin-top:12px">请家长在「家长」页添加英文动画链接</div>'}</div>`;
+    if (fun.length) x += `<div class="card"><details><summary style="cursor:pointer"><h2 style="display:inline">🌟 课外兴趣</h2> <span class="faint">自愿看，不算任务</span></summary><div class="tiles">${fun.map(tile).join('')}</div></details></div>`;
     x += `<div class="card"><div class="mini"><div class="ic" style="background:var(--ok-soft)">🎧</div>
-      <div style="flex:1"><h2>听力 · 英文故事</h2><div class="sub">${lt.done ? '今天已完成 ✓ 还想看就接着看' : '选一个，至少看 1 集，想多看就多看'}</div></div></div>
-      ${(() => { const L = l => `<a class="task" href="${esc(l.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:var(--ink)"><span class="lbl">📺 ${esc(l.name)}</span><span class="btn soft sm">去看</span></a>`;
-        const en = listenLinks().filter(l => l.cat !== 'fun'), fun = listenLinks().filter(l => l.cat === 'fun');
-        return (en.length ? `<div style="margin-top:12px">${en.slice(0, 4).map(L).join('')}</div>${en.length > 4 ? `<details><summary style="cursor:pointer;color:var(--pri);font-weight:700;font-size:14px;margin-top:6px">📺 更多英语故事（${en.length - 4}）</summary>${en.slice(4).map(L).join('')}</details>` : ''}` : '<div class="warn" style="margin-top:12px">请家长先在「家长」页添加英文故事链接</div>')
-          + (fun.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;color:var(--pri);font-weight:700;font-size:14px">🌟 课外兴趣（自愿看，不算任务）</summary>${fun.map(L).join('')}</details>` : ''); })()}
+      <div style="flex:1"><h2>听力 · 看完说一说</h2><div class="sub">${lt.done ? '今天已完成 ✓' : '从上面「英文动画」选一个看完，再说一说'}</div></div><span class="tag" style="background:var(--pri-soft);color:var(--pri)">必做</span></div>
       ${retellBox()}
       </div>`;
   }
@@ -946,11 +962,11 @@ async function parent() {
     <div class="sec-title">设置</div>
     <div class="card"><h2>🎁 成长大奖的奖品</h2><div class="sub" style="margin:4px 0 10px">现在：${esc(bigName())}</div>
       <input id="bn" placeholder="例如：去一次蹦床馆 / 一盒巧克力"><button class="btn sm" id="bnSave" style="margin-top:10px">保存</button></div>
-    <div class="card"><h2>🎧 英文故事链接（孩子听力时自己选）</h2>
+    <div class="card"><h2>🎬 英文动画 / 课外兴趣链接</h2>
       ${listenLinks().map((l, k) => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--line)"><span>${l.cat === 'fun' ? '🌟' : '📺'} ${esc(l.name)}</span><button class="btn soft sm" data-ldel="${k}">删除</button></div>`).join('') || '<div class="sub" style="margin-top:4px">还没有</div>'}
       <div class="faint" style="margin:12px 0 8px">抖音打开合集 → 分享 → 复制链接，整段粘贴到下面，再起个名字</div>
       <textarea id="lu" rows="3" style="font-size:13px" placeholder="粘贴抖音分享内容"></textarea>
-      <div class="row" style="margin-top:8px"><input id="ln" placeholder="名字，如：西游英语"><select id="lc" style="font:inherit;padding:10px;border-radius:13px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)"><option value="en">英语故事</option><option value="fun">课外兴趣</option></select></div>
+      <div class="row" style="margin-top:8px"><input id="ln" placeholder="名字，如：西游英语"><select id="lc" style="font:inherit;padding:10px;border-radius:13px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)"><option value="en">英文动画</option><option value="fun">课外兴趣</option></select></div>
       <button class="btn sm" id="luSave" style="margin-top:10px">添加</button></div>
     <div class="card"><h2>📦 导入设置 / 链接包</h2><div class="sub" style="margin:4px 0 10px">更新任务表、批量加链接时，把 Claude 给的那条长链接粘贴到这里</div>
       <textarea id="pk" rows="3" style="font-size:12px" placeholder="粘贴 https://…#setup=… 整条"></textarea>
@@ -964,7 +980,7 @@ async function parent() {
       <button class="btn soft sm" id="impt" style="margin-top:8px">用粘贴的文字恢复</button>
       <div class="faint" style="margin-top:8px">上次备份：${DATA.lastBackup ? DATA.lastBackup.slice(5).replace('-', '/') : '还没有'}${backupDue() ? ' <b style="color:var(--warn)">· 该备份了</b>' : ''}　上次保存：${DATA.savedAt ? esc(new Date(DATA.savedAt).toLocaleString('zh-CN', {hour12: false}).slice(0, -3)) : '还没有'}</div></div>`;
   app.innerHTML = x;
-  $('#luSave').onclick = () => { const u = $('#lu').value, n = $('#ln').value; if (!u.trim() || !n.trim()) { toast('链接和名字都要填'); return; } askPin('添加英文故事', async p => { const r = await api('/api/listen', {pin: p, url: u, name: n, cat: $('#lc').value}); if (!r.error) { toast('已添加'); render(); } return r; }); };
+  $('#luSave').onclick = () => { const u = $('#lu').value, n = $('#ln').value; if (!u.trim() || (!n.trim() && !/#setup=/.test(u))) { toast('链接和名字都要填'); return; } askPin('添加英文故事', async p => { const r = await api('/api/listen', {pin: p, url: u, name: n, cat: $('#lc').value}); if (!r.error) { toast(r.imported ? '链接包导入成功' : '已添加'); render(); } return r; }); };
   $('#pkGo').onclick = () => { const v = $('#pk').value; if (!v.trim()) { toast('请先粘贴'); return; } askPin('导入设置 / 链接包', async p => { if (String(p) !== String(pin())) return {error: '家长密码不对'}; if (!applySetupCode(v)) return {error: '内容不完整，请重新复制整条'}; toast('导入成功'); render(); return {ok: true}; }); };
   $$('[data-ldel]').forEach(b => b.onclick = () => askPin('删除这个链接', async p => { const r = await api('/api/listen/del', {pin: p, idx: b.dataset.ldel}); if (!r.error) { toast('已删除'); render(); } return r; }));
   $('#bnSave').onclick = () => { const v = $('#bn').value; if (!v.trim()) { toast('请先填写奖品'); return; } askPin('修改成长大奖', async p => { const r = await api('/api/settings', {pin: p, bigName: v}); if (!r.error) { toast('已保存'); render(); } return r; }); };
