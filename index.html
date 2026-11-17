@@ -533,8 +533,7 @@ async function today() {
       <div style="flex:1"><h2>听力 · 英文故事</h2><div class="sub">${lt.done ? '今天已完成 ✓ 还想看就接着看' : '选一个，至少看 1 集，想多看就多看'}</div></div></div>
       ${listenLinks().length ? `<div style="margin-top:12px">${listenLinks().map(l => `<a class="task" href="${esc(l.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:var(--ink)"><span class="lbl">📺 ${esc(l.name)}</span><span class="btn soft sm">去看</span></a>`).join('')}</div>`
         : '<div class="warn" style="margin-top:12px">请家长先在「家长」页添加英文故事链接</div>'}
-      <div style="margin-top:14px;background:var(--bg);border-radius:14px;padding:12px 14px;font-size:15px;line-height:1.8">
-        <b>看完说一说（点「开始录」，说完再点一下）</b><br>First, … <span class="faint">首先发生了什么</span><br>Then, … <span class="faint">然后呢</span><br>Finally, … <span class="faint">最后怎样</span><br>I like … because … <span class="faint">我喜欢谁，为什么</span></div>
+      ${retellBox()}
       <div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn sm" id="recBtn">${recState.on ? '■ 说完了' : '🎙 开始录'}</button>
         ${recState.url ? '<button class="btn soft sm" id="playBtn">▶ 听听我说的</button>' : ''}</div></div>`;
   }
@@ -557,6 +556,8 @@ async function today() {
   app.innerHTML = x;
 
   if ($('#recBtn')) $('#recBtn').onclick = toggleRec;
+  $$('[data-lv]').forEach(b => b.onclick = () => { retellLv = +b.dataset.lv; render(); });
+  $$('[data-sayw]').forEach(b => b.onclick = () => sayEn(b.dataset.sayw));
   if ($('#playBtn')) $('#playBtn').onclick = () => { try { new Audio(recState.url).play(); } catch (e) { toast('播放不了'); } };
   $('#prev').onclick = () => { state.date = addDays(state.date, -1); render(); };
   if ($('#next')) { $('#next').onclick = () => { state.date = addDays(state.date, 1); render(); }; $('#tod').onclick = () => { state.date = todayIso(); render(); }; }
@@ -580,6 +581,29 @@ async function today() {
   });
 }
 let confirmWord = null;
+/* 复述：三个难度 + 词语提示板（点词听发音）；说一句就算完成，可以中英夹杂 */
+const RETELL = [
+  ['⭐ 说一句', [['I like ___ because he is ___.', 'I like Monkey King because he is strong.'], ['Today I watched ___.', 'Today I watched Journey to the West.']]],
+  ['⭐⭐ 答三个问题', [['Who is in the story?', '→ Monkey King and Tang Monk.'], ['What happened?', '→ Monkey King fought a monster.'], ['How was it?', '→ It was funny / exciting / scary.']]],
+  ['⭐⭐⭐ 讲一讲', [['First, ___.', '首先发生了什么'], ['Then, ___.', '然后呢'], ['Finally, ___.', '最后怎样'], ['I like ___ because ___.', '我喜欢谁，为什么']]],
+];
+const WORDS = [
+  ['人物', [['Monkey King', '孙悟空'], ['Tang Monk', '唐僧'], ['Pigsy', '猪八戒'], ['Sandy', '沙僧'], ['the white horse', '白龙马'], ['a monster', '妖怪'], ['a king', '国王']]],
+  ['做了什么', [['fought', '打'], ['helped', '帮'], ['saved', '救'], ['caught', '抓住'], ['ran away', '逃跑'], ['flew', '飞'], ['ate', '吃'], ['found', '找到']]],
+  ['怎么样', [['strong', '强壮'], ['brave', '勇敢'], ['clever', '聪明'], ['funny', '好笑'], ['lazy', '懒'], ['angry', '生气'], ['scary', '吓人'], ['exciting', '刺激']]],
+  ['地方', [['a mountain', '山'], ['a cave', '山洞'], ['a river', '河'], ['the sky', '天上']]],
+];
+let retellLv = 0;
+function retellBox() {
+  const [, rows] = RETELL[retellLv];
+  return `<div style="margin-top:14px;background:var(--bg);border-radius:16px;padding:14px">
+    <div class="row between"><b>看完说一说</b><span class="faint">说一句就算完成，可以中英夹杂</span></div>
+    <div class="seg" style="margin:10px 0;box-shadow:none">${RETELL.map(([t], k) => `<button data-lv="${k}" class="${k === retellLv ? 'on' : ''}">${t}</button>`).join('')}</div>
+    ${rows.map(([q, eg]) => `<div style="padding:6px 0"><b style="font-size:16px">${esc(q)}</b><br><span class="faint">${esc(eg)}</span></div>`).join('')}
+    <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--pri);font-weight:700;font-size:14px">词语提示板（点词听发音）</summary>
+      ${WORDS.map(([g, ws]) => `<div class="faint" style="margin-top:10px">${g}</div>` + ws.map(([en, zh]) => `<span class="pill" data-sayw="${esc(en)}">${esc(en)} <span class="faint">${zh}</span></span>`).join('')).join('')}
+    </details></div>`;
+}
 const recState = {on: false, url: null, rec: null};
 async function toggleRec() {
   if (recState.on) { try { recState.rec.stop(); } catch (e) {} return; }
