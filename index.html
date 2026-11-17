@@ -472,6 +472,11 @@ LOCAL['GET /api/claims'] = () => Object.entries(DATA.claims).map(([key, v]) => (
 function listenLinks() {
   const st = settings();
   if (!st.listenLinks) { st.listenLinks = st.listenUrl ? [{name: st.listenName || '西游英语', url: st.listenUrl}] : []; }
+  if (!st.recSeeded && typeof RECOMMENDED !== 'undefined') {   // 新设备第一次自动带上推荐动画；删光后不会再自动加
+    const have = new Set(st.listenLinks.map(l => l.url));
+    RECOMMENDED.forEach(l => { if (!have.has(l.url)) st.listenLinks.push({...l}); });
+    st.recSeeded = true; save();
+  }
   const bad = l => /#setup=|monabloom\.github\.io|127\.0\.0\.1/.test(l.url);
   if (st.listenLinks.some(bad)) { st.listenLinks = st.listenLinks.filter(l => !bad(l)); save(); }
   return st.listenLinks;
