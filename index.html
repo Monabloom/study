@@ -191,17 +191,11 @@ const isoWeekday = s => { const w = new Date(s + 'T00:00').getDay(); return w ==
 const diffDays = (a, b) => Math.round((new Date(a + 'T00:00') - new Date(b + 'T00:00')) / 864e5);
 
 /* 固定学习任务（不含任何课程信息），课程从课表同步进来 */
-const ROUTINE = {
-  school: [['listen', '听力：英文动画', '07:30'], ['homework', '学校作业', '18:30'], ['read6', '六年级阅读 1 篇', '19:30'], ['reading', 'Reading 阅读 1 篇', '19:45'], ['listen2', '听力 1 篇', '19:55'],
-    ['math', '数学 15 分钟', '20:05'], ['word', '新单词 20 个', '20:40', 'word'], ['ket', 'KET 复习', '21:00', 'ket'], ['abc', 'ABC Reading 2 本', '21:10'], ['bedread', '睡前语文阅读 20 分钟', '21:30']],
-  sat: [['listen', '听力：英文动画', '08:00'], ['homework', '学校作业（上半）', '18:30'], ['word', '新单词 20 个', '19:35', 'word'], ['ket', 'KET 复习', '19:55', 'ket'],
-    ['reading', 'Reading 阅读 1 篇', '20:05'], ['listen2', '听力 1 篇', '20:15'], ['abc', 'ABC Reading 2 本', '20:20'], ['weekreview', '本周单词卡回看', '20:30'], ['bedread', '睡前语文阅读 20 分钟', '21:30']],
-  sun: [['listen', '听力：英文动画', '08:15'], ['dictation', '单词听写', '08:45'], ['read6', '六年级阅读 2 篇', '09:15'], ['math', '数学 30 分钟', '18:30'],
-    ['homework', '学校作业（下半）+ 语文作业', '19:00'], ['word', '新单词 20 个', '19:45', 'word'], ['ket', 'KET 复习', '20:00', 'ket'], ['reading', 'Reading 阅读 1 篇', '20:10'],
-    ['listen2', '听力 1 篇', '20:20'], ['abc', 'ABC Reading 2 本', '20:25'], ['bedread', '睡前语文阅读 20 分钟', '21:30']],
-  rest: [['listen', '听力：英文动画', '09:00'], ['word', '新单词 20 个', '10:00', 'word'], ['ket', 'KET 复习', '10:20', 'ket'], ['reading', 'Reading 阅读 1 篇', '16:00'], ['listen2', '听力 1 篇', '16:20'],
-    ['abc', 'ABC Reading 2 本', '20:00'], ['bedread', '睡前语文阅读 20 分钟', '21:30']],
-};
+const EVENING = [['homework', '学校作业', '18:30'], ['reading', '英语阅读 1 篇', '19:30'], ['listen2', '英语听力 1 篇', '19:45'], ['math', '数学计算 15 分钟', '20:00'],
+  ['word', 'PET 单词 20 个', '20:15', 'word'], ['ket', 'KET 复习 20 个', '20:35', 'ket'], ['wenyan', '文言文 1 篇', '20:50', 'wenyan'], ['abc', 'ABC Reading 2 本', '21:00'],
+  ['bedread', '阅读 20 分钟', '21:30']];
+const MORNING = {school: '07:30', sat: '08:30', sun: '08:30', rest: '09:00'};
+const ROUTINE = Object.fromEntries(Object.entries(MORNING).map(([k, t]) => [k, [['listen', '听力：英文动画', t], ...EVENING]]));
 function dayKind(date) {
   const s = (CFG.sched || {})[date] || {}, wd = isoWeekday(date), vac = CFG.vac;
   if (s.h) return 'rest';
@@ -725,7 +719,7 @@ async function today() {
   groups.forEach(([name, f]) => {
     const ts = d.tasks.filter(f); if (!ts.length) return;
     x += `<div class="card" style="padding:6px 18px"><div class="faint" style="padding:10px 0 2px">${name}</div>` + ts.map(t => `<div class="task ${t.done ? 'done' : ''}" data-task="${t.id}" data-done="${t.done ? 0 : 1}" data-type="${t.type}">
-        <span class="check">${t.done ? '✓' : ''}</span><span class="lbl">${coreIds.includes(t.id) ? '<span class="tag" style="background:var(--pri-soft);color:var(--pri);margin-right:6px">必做</span>' : t.type === 'class' ? '<span class="tag" style="background:var(--gold-soft);color:var(--warn);margin-right:6px">课</span>' : ''}${t.id === 'listen' ? '听力：英文故事（至少 1 集）' : esc(t.label)}${t.type === 'word' && c.day ? ` <span class="faint">Day ${c.day}</span>` : ''}</span>
+        <span class="check">${t.done ? '✓' : ''}</span><span class="lbl">${coreIds.includes(t.id) ? '<span class="tag" style="background:var(--pri-soft);color:var(--pri);margin-right:6px">必做</span>' : t.type === 'class' ? '<span class="tag" style="background:var(--gold-soft);color:var(--warn);margin-right:6px">课</span>' : ''}${t.id === 'listen' ? '听力：英文动画（至少 1 集）' : t.id === 'wenyan' && d.wenyan.week ? `文言文：${esc(d.wenyan.week.label)}` : esc(t.label)}${t.type === 'word' && c.day ? ` <span class="faint">Day ${c.day}</span>` : ''}</span>
         <span style="text-align:right"><span class="tm">${t.time}</span><br><span class="pt">+${t.type === 'word' || t.type === 'ket' ? 2 : 1}⭐</span></span></div>`).join('') + `</div>`;
   });
   x += `<button class="btn block" id="share" style="margin-top:6px">📤 把今天的情况发给家长</button>`;
