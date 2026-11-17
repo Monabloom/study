@@ -506,6 +506,15 @@ function daySummary(date) {
     `没做：${ts.filter(t => !done[t.id]).map(t => t.id === 'listen' ? '听力' : t.label).join('、') || '无'}`].filter(Boolean).join('\n');
 }
 function noteSaid(text) { const d = todayStr(); DATA.said = DATA.said || {}; (DATA.said[d] = DATA.said[d] || []).push(text); save(); }
+
+/* 推荐英文动画 / 课外兴趣（抖音公开视频，不含个人信息），家长页一键导入，已有的不重复 */
+const RECOMMENDED = [{"name": "精卫填海（英文）", "url": "https://v.douyin.com/cw6weK3W6To/", "cat": "en"}, {"name": "火海中的小小英雄", "url": "https://v.douyin.com/QB3RDNA1pIw/", "cat": "en"}, {"name": "大胖橘（双语）", "url": "https://v.douyin.com/g86_KA_bTjY/", "cat": "en"}, {"name": "狼妈妈 Mama Wolf", "url": "https://v.douyin.com/04QXShXEyJc/", "cat": "en"}, {"name": "小狐狸皮普·奥尔良鸡翅", "url": "https://v.douyin.com/Oo_7a_a4Pf4/", "cat": "en"}, {"name": "失控巨型南瓜", "url": "https://v.douyin.com/vvB0ztJ_DyU/", "cat": "en"}, {"name": "小毛毛虫把月亮吃掉了", "url": "https://v.douyin.com/fP-MakwyX9A/", "cat": "en"}, {"name": "胡桃夹子与鼠王（较难）", "url": "https://v.douyin.com/e-K1LcbGxzU/", "cat": "en"}, {"name": "睿哥双语·鸭子", "url": "https://v.douyin.com/396beleDdnk/", "cat": "en"}, {"name": "雪地里的小画家（简单）", "url": "https://v.douyin.com/_gGTu8OIIoU/", "cat": "en"}, {"name": "My little boat can sail（简单）", "url": "https://v.douyin.com/rgi-5brY5MU/", "cat": "en"}, {"name": "物理启蒙动画", "url": "https://v.douyin.com/X45BXd4FbEo/", "cat": "fun"}, {"name": "元朝历史故事", "url": "https://v.douyin.com/bVXZyM8R0F4/", "cat": "fun"}, {"name": "数学·蜗牛爬井", "url": "https://v.douyin.com/HYffPrt4AqU/", "cat": "fun"}, {"name": "好听的英文歌", "url": "https://v.douyin.com/l30X9shnP0w/", "cat": "fun"}];
+LOCAL['POST /api/listen/recommended'] = b => {
+  if (String(b.pin) !== String(pin())) return {error: '家长密码不对'};
+  const have = new Set(listenLinks().map(l => l.url)); let n = 0;
+  RECOMMENDED.forEach(l => { if (!have.has(l.url)) { listenLinks().push({...l}); n++; } });
+  save(); return {ok: true, added: n};
+};
 </script>
 <script>
 const $ = s => document.querySelector(s);
@@ -608,7 +617,7 @@ async function today() {
     x += `<div class="card"><div class="row between"><h2>🎬 英文动画</h2><span class="faint">${en.length} 个</span></div>
       ${en.length ? `<div class="tiles">${en.slice(0, 6).map(tile).join('')}</div>${en.length > 6 ? `<details><summary style="cursor:pointer;color:var(--pri);font-weight:700;font-size:14px;margin-top:12px">更多（${en.length - 6}）</summary><div class="tiles">${en.slice(6).map(tile).join('')}</div></details>` : ''}`
         : '<div class="warn" style="margin-top:12px">请家长在「家长」页添加英文动画链接</div>'}</div>`;
-    if (fun.length) x += `<div class="card"><details><summary style="cursor:pointer"><h2 style="display:inline">🌟 课外兴趣</h2> <span class="faint">自愿看，不算任务</span></summary><div class="tiles">${fun.map(tile).join('')}</div></details></div>`;
+    if (fun.length) x += `<div class="card"><details><summary style="cursor:pointer"><h2 style="display:inline">🌟 课外兴趣</h2> <span class="faint">${fun.length} 个</span></summary><div class="tiles">${fun.map(tile).join('')}</div></details></div>`;
     x += `<div class="card"><div class="mini"><div class="ic" style="background:var(--ok-soft)">🎧</div>
       <div style="flex:1"><h2>听力 · 看完说一说</h2><div class="sub">${lt.done ? '今天已完成 ✓' : '从上面「英文动画」选一个看完，再说一说'}</div></div><span class="tag" style="background:var(--pri-soft);color:var(--pri)">必做</span></div>
       ${retellBox()}
@@ -640,6 +649,7 @@ async function today() {
   };
   $$('[data-lv]').forEach(b => b.onclick = () => { retellLv = +b.dataset.lv; render(); });
   $$('[data-sayw]').forEach(b => b.onclick = () => sayEn(b.dataset.sayw));
+  $$('[data-model]').forEach(b => b.onclick = () => speakQueue(MODELS[+b.dataset.model][1].map(([en]) => [en, 'en-GB', .8])));
   let rTarget = null;
   const rFill = (k, text) => { retellSaid[retellLv + '-' + k] = text; noteSaid(text); toast('说得好！👍'); render(); };
   $$('[data-rmic]').forEach(b => b.onclick = async () => {
@@ -680,7 +690,7 @@ async function today() {
 /* 复述：三个难度 + 词语提示板（点词听发音）；说一句就算完成，可以中英夹杂 */
 const RETELL = [
   ['⭐ 说一句', [['I like ___ because he is ___.', 'I like Monkey King because he is strong.'], ['Today I watched ___.', 'Today I watched Journey to the West.']]],
-  ['⭐⭐ 答三个问题', [['Who is in the story?', '→ Monkey King and Tang Monk.'], ['What happened?', '→ Monkey King fought a monster.'], ['How was it?', '→ It was funny / exciting / scary.']]],
+  ['⭐⭐ 答三问', [['Who is in the story?', '→ Monkey King and Tang Monk.'], ['What happened?', '→ Monkey King fought a monster.'], ['How was it?', '→ It was funny / exciting / scary.']]],
   ['⭐⭐⭐ 讲一讲', [['First, ___.', '首先发生了什么'], ['Then, ___.', '然后呢'], ['Finally, ___.', '最后怎样'], ['I like ___ because ___.', '我喜欢谁，为什么']]],
 ];
 const WORDS = [
@@ -690,6 +700,10 @@ const WORDS = [
   ['地方', [['a mountain', '山'], ['a cave', '山洞'], ['a river', '河'], ['the sky', '天上']]],
 ];
 let retellLv = 0;
+const MODELS = [
+  ['西游记', [['First, Monkey King was under a big mountain.', '首先，孙悟空被压在一座大山下面。'], ['Then, Tang Monk came and saved him.', '然后，唐僧来了，把他救了出来。'], ['Finally, they went to the west together.', '最后，他们一起去西天取经。'], ['I like Monkey King because he is brave and funny.', '我喜欢孙悟空，因为他勇敢又好玩。']]],
+  ['精卫填海', [['First, a little girl went to the sea.', '首先，一个小女孩去大海玩。'], ['Then, she fell into the water and became a bird.', '然后，她掉进海里，变成了一只鸟。'], ['Finally, the bird carried stones to fill the sea.', '最后，这只鸟衔来石头去填大海。'], ['I like the bird because she never gives up.', '我喜欢这只鸟，因为她从不放弃。']]],
+];
 const retellSaid = {};   // {'难度-行': 识别出的句子}
 function retellBox() {
   const [, rows] = RETELL[retellLv];
@@ -702,7 +716,11 @@ function retellBox() {
         ${s ? `<div style="color:var(--ok);font-weight:700;font-size:16px;margin-top:2px">🗣 ${esc(s)}</div>` : ''}
         <div class="faint">例：${esc(eg)}</div></div>
         <button class="say" data-rmic="${k}" style="background:var(--ok-soft);color:var(--ok)">🎤</button></div>`; }).join('')}
-    <div class="row" style="margin-top:4px" hidden id="rIn"><input placeholder="${kbHint('en')}，或打字" style="padding:8px 10px;font-size:15px"><button class="btn sm" id="rGo">填进去</button></div>
+    <div hidden id="rIn"><div class="row" style="margin-top:4px"><input placeholder="${kbHint('en')}" style="padding:8px 10px;font-size:15px"><button class="btn sm" id="rGo">填进去</button></div>${kbTip('en')}</div>
+    ${retellLv === 2 ? `<details style="margin-top:8px" open><summary style="cursor:pointer;color:var(--pri);font-weight:700;font-size:14px">📖 讲不出来？先听范文，再跟着读一遍</summary>
+      ${MODELS.map(([t, ls], k) => `<div style="background:var(--card);border-radius:14px;padding:12px 14px;margin-top:10px"><div class="row between"><b>${t}</b><button class="btn soft sm" data-model="${k}">🔊 听范文</button></div>
+        ${ls.map(([en, zh]) => `<div style="margin-top:8px"><div style="font-size:15px">${esc(en)}</div><div class="faint">${zh}</div></div>`).join('')}</div>`).join('')}
+      <div class="faint" style="margin-top:8px">读熟了，把人物和事情换成你今天看的故事</div></details>` : ''}
     <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--pri);font-weight:700;font-size:14px">词语提示板（点词听发音）</summary>
       ${WORDS.map(([g, ws]) => `<div class="faint" style="margin-top:10px">${g}</div>` + ws.map(([en, zh]) => `<span class="pill" data-sayw="${esc(en)}">${esc(en)} <span class="faint">${zh}</span></span>`).join('')).join('')}
     </details></div>`;
@@ -726,7 +744,8 @@ const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const IOS_APP = IOS && (navigator.standalone === true || matchMedia('(display-mode: standalone)').matches);
 const USE_KB = !SR || IOS_APP;   // iPhone 主屏幕图标里网页语音不可用，改用键盘自带听写
-const kbHint = lang => lang === 'zh' ? '点键盘上的 🎤 说中文' : '先点 🌐 切到英文键盘，再点 🎤 说英文';
+const kbHint = lang => lang === 'zh' ? '点键盘右下角的 🎤 说中文' : '点 🌐 切到英文键盘，再点右下角 🎤 说英文';
+const kbTip = lang => `<div style="margin-top:6px;background:var(--pri-soft);color:var(--pri);border-radius:12px;padding:8px 10px;font-size:13px;line-height:1.5">👇 不用打字：${lang === 'zh' ? '点键盘<b>右下角的 🎤</b>，用中文说' : '先点键盘左下角 <b>🌐</b> 换成英文键盘，再点<b>右下角的 🎤</b> 说英文'}，说完停一下会自动判对错</div>`;
 /* 输入框停顿 1.5 秒自动提交（键盘听写说完会自动停） */
 function autoSubmit(inp, fn) {
   let t; inp.oninput = () => { clearTimeout(t); t = setTimeout(() => { const v = inp.value.trim(); if (v) fn(v); }, 1500); };
@@ -801,8 +820,9 @@ async function words() {
       return `<div class="wrow" id="w${i}"><span class="n">${mark || i + 1}</span>
       <div class="en">${enCell}</div>
       <div class="zh">${zhCell}
-        <div class="row" style="margin-top:6px" hidden data-in="${i}"><input placeholder="${kbHint(m)}，或打字" style="padding:8px 10px;font-size:15px"><button class="btn sm" data-go="${i}">对答案</button></div></div>
-      <div class="row" style="gap:6px">${m !== 'en' ? `<button class="say" data-say="${esc(w.w)}">🔊</button>` : ''}${testing ? `<button class="say" data-mic="${i}" style="background:var(--ok-soft);color:var(--ok)">🎤</button>` : ''}</div></div>`;
+        </div>
+      <div class="row" style="gap:6px">${m !== 'en' ? `<button class="say" data-say="${esc(w.w)}">🔊</button>` : ''}${testing ? `<button class="say" data-mic="${i}" style="background:var(--ok-soft);color:var(--ok)">🎤</button>` : ''}</div></div>
+      <div hidden data-in="${i}" style="padding:0 0 12px 32px"><div class="row"><input placeholder="${kbHint(m)}" style="padding:10px 12px;font-size:16px"><button class="btn sm" data-go="${i}">对答案</button></div>${kbTip(m)}</div>`;
     }).join('') +
     `</div><div class="row between"><button class="btn soft sm" id="pd" ${day <= 1 ? 'disabled' : ''}>‹ Day ${day - 1}</button>
       <button class="btn soft sm" id="nd" ${day >= list.cards.length ? 'disabled' : ''}>Day ${day + 1} ›</button></div>
@@ -841,7 +861,7 @@ async function words() {
     }
   });
   $$('[data-go]').forEach(b => b.onclick = () => { const i = +b.dataset.go, v = document.querySelector(`[data-in="${i}"] input`).value.trim(); if (v) judge(i, [v]); });
-  $$('[data-in] input').forEach(inp => { const i = +inp.parentElement.dataset.in; autoSubmit(inp, v => judge(i, [v])); });
+  $$('[data-in] input').forEach(inp => { const i = +inp.closest('[data-in]').dataset.in; autoSubmit(inp, v => judge(i, [v])); });
   $$('[data-fix]').forEach(a => a.onclick = e => { e.preventDefault(); quiz[+a.dataset.fix] = 'ok'; render(); });
   if ($('#qreset')) $('#qreset').onclick = () => { quiz = {}; render(); };
   $$('[data-day]').forEach(b => b.onclick = () => { state.cardDay = +b.dataset.day; render(); scrollTo(0, 0); });
@@ -968,6 +988,8 @@ async function parent() {
       <textarea id="lu" rows="3" style="font-size:13px" placeholder="粘贴抖音分享内容"></textarea>
       <div class="row" style="margin-top:8px"><input id="ln" placeholder="名字，如：西游英语"><select id="lc" style="font:inherit;padding:10px;border-radius:13px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)"><option value="en">英文动画</option><option value="fun">课外兴趣</option></select></div>
       <button class="btn sm" id="luSave" style="margin-top:10px">添加</button></div>
+    <div class="card"><h2>⭐ 一键导入推荐动画</h2><div class="sub" style="margin:4px 0 10px">英文动画 ${RECOMMENDED.filter(l => l.cat !== 'fun').length} 个 + 课外兴趣 ${RECOMMENDED.filter(l => l.cat === 'fun').length} 个，已有的不会重复</div>
+      <button class="btn sm" id="recGo">一键导入</button></div>
     <div class="card"><h2>📦 导入设置 / 链接包</h2><div class="sub" style="margin:4px 0 10px">更新任务表、批量加链接时，把 Claude 给的那条长链接粘贴到这里</div>
       <textarea id="pk" rows="3" style="font-size:12px" placeholder="粘贴 https://…#setup=… 整条"></textarea>
       <button class="btn sm" id="pkGo" style="margin-top:10px">导入</button></div>
@@ -981,6 +1003,7 @@ async function parent() {
       <div class="faint" style="margin-top:8px">上次备份：${DATA.lastBackup ? DATA.lastBackup.slice(5).replace('-', '/') : '还没有'}${backupDue() ? ' <b style="color:var(--warn)">· 该备份了</b>' : ''}　上次保存：${DATA.savedAt ? esc(new Date(DATA.savedAt).toLocaleString('zh-CN', {hour12: false}).slice(0, -3)) : '还没有'}</div></div>`;
   app.innerHTML = x;
   $('#luSave').onclick = () => { const u = $('#lu').value, n = $('#ln').value; if (!u.trim() || (!n.trim() && !/#setup=/.test(u))) { toast('链接和名字都要填'); return; } askPin('添加英文故事', async p => { const r = await api('/api/listen', {pin: p, url: u, name: n, cat: $('#lc').value}); if (!r.error) { toast(r.imported ? '链接包导入成功' : '已添加'); render(); } return r; }); };
+  $('#recGo').onclick = () => askPin('导入推荐动画', async p => { const r = await api('/api/listen/recommended', {pin: p}); if (!r.error) { toast(r.added ? `已导入 ${r.added} 个` : '都已经有了'); render(); } return r; });
   $('#pkGo').onclick = () => { const v = $('#pk').value; if (!v.trim()) { toast('请先粘贴'); return; } askPin('导入设置 / 链接包', async p => { if (String(p) !== String(pin())) return {error: '家长密码不对'}; if (!applySetupCode(v)) return {error: '内容不完整，请重新复制整条'}; toast('导入成功'); render(); return {ok: true}; }); };
   $$('[data-ldel]').forEach(b => b.onclick = () => askPin('删除这个链接', async p => { const r = await api('/api/listen/del', {pin: p, idx: b.dataset.ldel}); if (!r.error) { toast('已删除'); render(); } return r; }));
   $('#bnSave').onclick = () => { const v = $('#bn').value; if (!v.trim()) { toast('请先填写奖品'); return; } askPin('修改成长大奖', async p => { const r = await api('/api/settings', {pin: p, bigName: v}); if (!r.error) { toast('已保存'); render(); } return r; }); };
@@ -1016,6 +1039,13 @@ if (!CFG) {
   else if (/^words-(zh|en)$/.test(h0)) { state.mode = h0.slice(6); go('words'); }
   else if (['today', 'words', 'wenyan', 'rewards', 'parent'].includes(h0)) go(h0); else render();
 }
+let lastDay = todayIso();
+function dayCheck() {
+  const t = todayIso();
+  if (t !== lastDay) { lastDay = t; state.date = t; quiz = {}; if (CFG) render(); }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { dayCheck(); if (CFG && state.view === 'today' && !document.querySelector('.sheet-bg')) render(); } });
+setInterval(dayCheck, 60000);
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
