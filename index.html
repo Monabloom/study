@@ -192,14 +192,14 @@ const diffDays = (a, b) => Math.round((new Date(a + 'T00:00') - new Date(b + 'T0
 
 /* 固定学习任务（不含任何课程信息），课程从课表同步进来 */
 const ROUTINE = {
-  school: [['listen', '听力：英文动画', '07:30'], ['homework', '学校作业', '18:30'], ['read6', '六年级阅读 1 篇', '19:30'], ['reading', 'Reading 阅读 1 篇', '19:45'],
-    ['math', '数学 15 分钟', '20:00'], ['word', '新单词 20 个', '20:40', 'word'], ['ket', 'KET 复习', '21:00', 'ket'], ['abc', 'ABC Reading 2 本', '21:10'], ['bedread', '睡前语文阅读 20 分钟', '21:30']],
+  school: [['listen', '听力：英文动画', '07:30'], ['homework', '学校作业', '18:30'], ['read6', '六年级阅读 1 篇', '19:30'], ['reading', 'Reading 阅读 1 篇', '19:45'], ['listen2', '听力 1 篇', '19:55'],
+    ['math', '数学 15 分钟', '20:05'], ['word', '新单词 20 个', '20:40', 'word'], ['ket', 'KET 复习', '21:00', 'ket'], ['abc', 'ABC Reading 2 本', '21:10'], ['bedread', '睡前语文阅读 20 分钟', '21:30']],
   sat: [['listen', '听力：英文动画', '08:00'], ['homework', '学校作业（上半）', '18:30'], ['word', '新单词 20 个', '19:35', 'word'], ['ket', 'KET 复习', '19:55', 'ket'],
-    ['reading', 'Reading 阅读 1 篇', '20:05'], ['abc', 'ABC Reading 2 本', '20:20'], ['weekreview', '本周单词卡回看', '20:30'], ['bedread', '睡前语文阅读 20 分钟', '21:30']],
+    ['reading', 'Reading 阅读 1 篇', '20:05'], ['listen2', '听力 1 篇', '20:15'], ['abc', 'ABC Reading 2 本', '20:20'], ['weekreview', '本周单词卡回看', '20:30'], ['bedread', '睡前语文阅读 20 分钟', '21:30']],
   sun: [['listen', '听力：英文动画', '08:15'], ['dictation', '单词听写', '08:45'], ['read6', '六年级阅读 2 篇', '09:15'], ['math', '数学 30 分钟', '18:30'],
     ['homework', '学校作业（下半）+ 语文作业', '19:00'], ['word', '新单词 20 个', '19:45', 'word'], ['ket', 'KET 复习', '20:00', 'ket'], ['reading', 'Reading 阅读 1 篇', '20:10'],
-    ['abc', 'ABC Reading 2 本', '20:25'], ['bedread', '睡前语文阅读 20 分钟', '21:30']],
-  rest: [['listen', '听力：英文动画', '09:00'], ['word', '新单词 20 个', '10:00', 'word'], ['ket', 'KET 复习', '10:20', 'ket'], ['reading', 'Reading 阅读 1 篇', '16:00'],
+    ['listen2', '听力 1 篇', '20:20'], ['abc', 'ABC Reading 2 本', '20:25'], ['bedread', '睡前语文阅读 20 分钟', '21:30']],
+  rest: [['listen', '听力：英文动画', '09:00'], ['word', '新单词 20 个', '10:00', 'word'], ['ket', 'KET 复习', '10:20', 'ket'], ['reading', 'Reading 阅读 1 篇', '16:00'], ['listen2', '听力 1 篇', '16:20'],
     ['abc', 'ABC Reading 2 本', '20:00'], ['bedread', '睡前语文阅读 20 分钟', '21:30']],
 };
 function dayKind(date) {
