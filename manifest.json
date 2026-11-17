@@ -1,0 +1,1 @@
+{"name": "学习打卡", "short_name": "学习打卡", "start_url": "./", "scope": "./", "display": "standalone", "background_color": "#f6f6fb", "theme_color": "#5b5bd6", "icons": [{"src": "icon-180.png", "sizes": "180x180", "type": "image/png"}, {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"}]}
