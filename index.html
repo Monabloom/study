@@ -192,6 +192,10 @@ function dayProgress(date) {
   const tasks = tasksFor(date), done = DATA.taskDone[date] || {};
   return [tasks.filter(t => done[t.id]).length, tasks.length];
 }
+const CORE = ['word', 'listen', 'reading', 'bedread'];   // 必做：做完就解锁当天奖励
+const PASS = 16;                                          // 单词自测对 16 个才算背完
+function coreTasks(date) { const ts = tasksFor(date), c = ts.filter(t => CORE.includes(t.id)); return c.length ? c : ts; }
+function coreProgress(date) { const done = DATA.taskDone[date] || {}, c = coreTasks(date); return [c.filter(t => done[t.id]).length, c.length]; }
 function refreshBonus(date) {
   const [n, total] = dayProgress(date);
   if (total && n === total) star('bonus:' + date, 3, date, '全部完成奖励'); else unstar('bonus:' + date);
@@ -218,14 +222,14 @@ function reviewsDue(date) {
 }
 function wenyanWeek(date) { return WY_SCHED.find(b => b.start <= date && date <= b.end) || null; }
 function wyChecks(i) { return [0, 1, 2, 3, 4].filter(k => DATA.wenyan[i + ':' + k]); }
+function coreFull(date) { const [n, t] = coreProgress(date); return t > 0 && n === t; }
 function streak(date) {
   const start = CFG ? CFG.start_date : date;
-  let d = date, [n, total] = dayProgress(date);
-  if (!(total && n / total >= 0.8)) d = addDays(d, -1);
-  let s = 0;
-  while (d >= start) { [n, total] = dayProgress(d); if (total && n / total >= 0.8) { s++; d = addDays(d, -1); } else break; }
+  let d = coreFull(date) ? date : addDays(date, -1), s = 0;
+  while (d >= start && coreFull(d)) { s++; d = addDays(d, -1); }
   return s;
 }
+function testBest(day) { return ((DATA.wordTest || {})[day] || {}).best || 0; }
 function earned() { return Object.values(DATA.stars).reduce((a, s) => a + s.amount, 0); }
 function balance() { return earned() - DATA.redeem.reduce((a, r) => a + r.cost, 0); }
 
@@ -243,6 +247,13 @@ const LOCAL = {
   'POST /api/task'(b) {
     const {date, task, done} = b; const t = tasksFor(date).find(x => x.id === task);
     if (!t) return {error: 'no such task'};
+    const today = todayStr();
+    if (date > today) return {error: '不能提前打卡哦'};
+    if (date < addDays(today, -1) && String(b.pin) !== String(pin())) return {error: 'needpin'};
+    if (done && t.type === 'word' && !learnedOn(date)) {
+      const cur = currentCard();
+      if (cur && testBest(cur) < PASS) return {error: 'needtest', day: cur};
+    }
     DATA.taskDone[date] = DATA.taskDone[date] || {};
     if (done) {
       DATA.taskDone[date][task] = Date.now();
@@ -253,6 +264,25 @@ const LOCAL = {
       if (t.type === 'word') { const d = learnedOn(date); if (d) delete DATA.wordLearn[d]; }
     }
     refreshBonus(date); save(); return {ok: true};
+  },
+  'POST /api/wordtest'(b) {
+    const day = +b.day, ok = +b.ok, date = todayStr();
+    DATA.wordTest = DATA.wordTest || {};
+    const r = DATA.wordTest[day] || {best: 0};
+    if (ok > r.best) { r.best = ok; r.date = date; }
+    DATA.wordTest[day] = r;
+    const out = {best: r.best};
+    if (ok >= PASS) {
+      const wt = tasksFor(date).find(t => t.type === 'word');
+      if (wt && !learnedOn(date) && currentCard() === day) {
+        DATA.taskDone[date] = DATA.taskDone[date] || {};
+        DATA.taskDone[date][wt.id] = Date.now(); star(`task:${date}:${wt.id}`, 2, date, wt.label);
+        DATA.wordLearn[day] = date; refreshBonus(date); out.learned = true;
+      }
+      const due = reviewsDue(date).find(v => v.day === day && !v.done);
+      if (due) { DATA.wordReview[day + ':' + due.stage] = date; star(`review:${day}:${due.stage}`, 1, date, `复习 Day ${day}（${due.name}）`); out.reviewed = due.name; }
+    }
+    save(); return out;
   },
   'POST /api/review'(b) {
     const day = +b.day, stage = +b.stage, date = b.date || todayStr(), k = day + ':' + stage;
@@ -339,8 +369,13 @@ function applySetupCode(text) {
   if (!m) return false;
   try {
     const cfg = JSON.parse(b64decodeUtf8(m[1]));
-    if (!cfg.weekday) return false;
-    CFG = cfg; lsSet(LS_CFG, cfg); ensureRewards();
+    if (!cfg.weekday && !cfg.listenLinks) return false;
+    if (cfg.listenLinks) {
+      const have = new Set(listenLinks().map(l => l.url));
+      cfg.listenLinks.forEach(l => { if (!have.has(l.url)) { listenLinks().push(l); have.add(l.url); } });
+      delete cfg.listenLinks; save();
+    }
+    if (cfg.weekday) { CFG = cfg; lsSet(LS_CFG, cfg); ensureRewards(); }
     return true;
   } catch (e) { return false; }
 }
@@ -351,6 +386,11 @@ function applySetupFromHash() {
   if (!ok) alert('设置链接不完整，请重新复制');
   return ok;
 }
+function backupDue() {
+  if (!Object.keys(DATA.taskDone).length) return false;
+  return !DATA.lastBackup || diffDays(todayStr(), DATA.lastBackup.slice(0, 10)) >= 7;
+}
+function markBackup() { DATA.lastBackup = todayStr(); save(); }
 function exportBackup() {
   return JSON.stringify({kind: 'study-backup', v: 1, at: new Date().toISOString(), cfg: CFG, data: DATA});
 }
@@ -365,7 +405,7 @@ const DEFAULT_BIG = '自选小礼物（玩具、零食或游戏道具，30 元�
 function settings() { DATA.settings = DATA.settings || {}; return DATA.settings; }
 function bigName() { return settings().bigName || DEFAULT_BIG; }
 DATA.claims = DATA.claims || {};
-function dayFull(date) { const [n, t] = dayProgress(date); return t > 0 && n === t; }
+function dayFull(date) { return coreFull(date); }
 function mondayOf(date) { return addDays(date, 1 - isoWeekday(date)); }
 function weekInfo(date) {
   const mon = mondayOf(date), start = CFG ? CFG.start_date : date, t = todayStr();
@@ -392,7 +432,7 @@ function milestones() {
   return {words, nextWord: Math.min(CARDS.length, (Math.floor(words / 10) + 1) * 10), items};
 }
 function rewardsState(date) {
-  const [n, total] = dayProgress(date);
+  const [n, total] = coreProgress(date);
   const dk = 'daily:' + date;
   return {
     daily: {key: dk, unlocked: total > 0 && n === total, remaining: total - n, claimed: DATA.claims[dk] || null, isToday: date === todayStr()},
@@ -431,12 +471,29 @@ LOCAL['POST /api/listen'] = b => {
   if (!url) return {error: '没找到链接，请把抖音"复制链接"的内容整段粘贴'};
   const name = String(b.name || '').trim();
   if (!name) return {error: '请给这个故事起个名字'};
-  listenLinks().push({name, url: url[0]}); save(); return {ok: true};
+  listenLinks().push({name, url: url[0], cat: b.cat === 'fun' ? 'fun' : 'en'}); save(); return {ok: true};
 };
 LOCAL['POST /api/listen/del'] = b => {
   if (String(b.pin) !== String(pin())) return {error: '家长密码不对'};
   listenLinks().splice(+b.idx, 1); save(); return {ok: true};
 };
+
+function daySummary(date) {
+  const ts = tasksFor(date), done = DATA.taskDone[date] || {}, [cn, ct] = coreProgress(date);
+  const ld = learnedOn(date), revs = reviewsDue(date).filter(v => v.done);
+  const said = ((DATA.said || {})[date] || []);
+  const wy = Object.entries(DATA.wenyan).filter(([, d]) => d === date).map(([k]) => WENYAN[+k.split(':')[0]].t + '·' + WY_STAGES[+k.split(':')[1]]);
+  const d = rewardsState(date).daily;
+  return [`📚 ${date.slice(5).replace('-', '/')} 学习小结`,
+    `必做 ${cn}/${ct}，全部任务 ${ts.filter(t => done[t.id]).length}/${ts.length}${d.unlocked ? '，今日奖励已解锁' : ''}`,
+    ld ? `🔤 单词：背完 Day ${ld}，自测对 ${testBest(ld)}/20` : '🔤 单词：今天还没背',
+    revs.length ? `🔁 复习：${revs.map(v => 'Day ' + v.day).join('、')}` : '',
+    said.length ? `🗣 说的英语：${said.join(' / ')}` : '',
+    wy.length ? `📜 文言文：${wy.join('、')}` : '',
+    `🔥 连续 ${streak(date)} 天 · ⭐ ${balance()}`,
+    `没做：${ts.filter(t => !done[t.id]).map(t => t.id === 'listen' ? '听力' : t.label).join('、') || '无'}`].filter(Boolean).join('\n');
+}
+function noteSaid(text) { const d = todayStr(); DATA.said = DATA.said || {}; (DATA.said[d] = DATA.said[d] || []).push(text); save(); }
 </script>
 <script>
 const $ = s => document.querySelector(s);
@@ -502,6 +559,7 @@ async function today() {
   const d = await api('/api/today?date=' + state.date);
   const r = rewardsState(d.date);
   const done = d.tasks.filter(t => t.done).length, total = d.tasks.length;
+  const [cDone, cTotal] = coreProgress(d.date), coreIds = coreTasks(d.date).map(t => t.id);
   const isToday = d.date === todayIso();
   const h = new Date().getHours();
   const hello = !isToday ? '补打卡' : h < 11 ? '早上好 ☀️' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好 🌙';
@@ -513,11 +571,13 @@ async function today() {
     <div class="row" style="margin-top:8px;gap:8px"><button class="icon-btn" id="prev">‹</button>
       ${isToday ? '<span class="faint">点 ‹ 可以补前几天的打卡</span>' : '<button class="icon-btn" id="next">›</button><button class="btn soft sm" id="tod">回到今天</button>'}</div>
 
-    <div class="card"><div class="hero">${ring(done, total)}
-      <div style="flex:1"><h2>${done === total && total ? '今天全部完成！' : `还差 ${total - done} 项`}</h2>
-      <div class="sub" style="margin-top:4px">${done === total && total ? '太棒了，额外 +3 ⭐' : '全部完成就能选：零食 或 20 分钟游戏'}</div></div></div>
+    ${backupDue() ? '<div class="warn" style="margin-top:12px">💾 超过 7 天没备份了，请家长到「家长」页点「导出备份」</div>' : ''}
+    <div class="card"><div class="hero">${ring(cDone, cTotal)}
+      <div style="flex:1"><h2>${cDone === cTotal ? '必做全部完成！' : `必做还差 ${cTotal - cDone} 项`}</h2>
+      <div class="sub" style="margin-top:4px">${cDone === cTotal ? '今日奖励已解锁 🎉' : '做完必做就能选：零食 或 20 分钟游戏'}</div>
+      <div class="faint" style="margin-top:6px">全部任务 ${done}/${total}${done === total && total ? ' · 全做完额外 +3⭐' : ''}</div></div></div>
       <div class="unlock ${dl.unlocked ? 'on' : ''}"><span class="ic">${dl.claimed ? '✅' : dl.unlocked ? '🎮' : '🔒'}</span>
-        <div style="flex:1"><b>今日奖励：零食 或 20 分钟游戏</b><small>${dl.claimed ? '今天已兑现：' + esc(dl.claimed.note.replace('每日奖励：', '')) : dl.unlocked ? (isToday ? '已解锁！二选一，找家长兑现' : '这天已完成') : `还差 ${dl.remaining} 项解锁`}</small></div>
+        <div style="flex:1"><b>今日奖励：零食 或 20 分钟游戏</b><small>${dl.claimed ? '今天已兑现：' + esc(dl.claimed.note.replace('每日奖励：', '')) : dl.unlocked ? (isToday ? '已解锁！二选一，找家长兑现' : '这天已完成') : `必做还差 ${dl.remaining} 项`}</small></div>
         ${dl.unlocked && !dl.claimed && isToday ? '<button class="btn sm" id="claimDaily" style="background:#fff;color:var(--pri)">去选</button>' : ''}</div></div>
 
     <div class="card"><div class="row between"><h2>🏆 本周挑战</h2><span class="tag">周末 1 小时</span></div>
@@ -531,16 +591,18 @@ async function today() {
     const st = settings();
     x += `<div class="card"><div class="mini"><div class="ic" style="background:var(--ok-soft)">🎧</div>
       <div style="flex:1"><h2>听力 · 英文故事</h2><div class="sub">${lt.done ? '今天已完成 ✓ 还想看就接着看' : '选一个，至少看 1 集，想多看就多看'}</div></div></div>
-      ${listenLinks().length ? `<div style="margin-top:12px">${listenLinks().map(l => `<a class="task" href="${esc(l.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:var(--ink)"><span class="lbl">📺 ${esc(l.name)}</span><span class="btn soft sm">去看</span></a>`).join('')}</div>`
-        : '<div class="warn" style="margin-top:12px">请家长先在「家长」页添加英文故事链接</div>'}
+      ${(() => { const L = l => `<a class="task" href="${esc(l.url)}" target="_blank" rel="noopener" style="text-decoration:none;color:var(--ink)"><span class="lbl">📺 ${esc(l.name)}</span><span class="btn soft sm">去看</span></a>`;
+        const en = listenLinks().filter(l => l.cat !== 'fun'), fun = listenLinks().filter(l => l.cat === 'fun');
+        return (en.length ? `<div style="margin-top:12px">${en.slice(0, 4).map(L).join('')}</div>${en.length > 4 ? `<details><summary style="cursor:pointer;color:var(--pri);font-weight:700;font-size:14px;margin-top:6px">📺 更多英语故事（${en.length - 4}）</summary>${en.slice(4).map(L).join('')}</details>` : ''}` : '<div class="warn" style="margin-top:12px">请家长先在「家长」页添加英文故事链接</div>')
+          + (fun.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;color:var(--pri);font-weight:700;font-size:14px">🌟 课外兴趣（自愿看，不算任务）</summary>${fun.map(L).join('')}</details>` : ''); })()}
       ${retellBox()}
       </div>`;
   }
   if (c.day) x += `<div class="card"><div class="mini"><div class="ic" style="background:var(--pri-soft)">🔤</div>
       <div style="flex:1"><h2>单词 Day ${c.day}</h2><div class="sub">${esc(c.topics)}</div></div>
       ${c.learned_today ? '<span class="tag" style="background:var(--ok-soft);color:var(--ok)">已背完</span>' : '<button class="btn sm" id="opencard">去背</button>'}</div>
-      ${d.reviews.length ? `<div style="margin-top:14px"><div class="faint" style="margin-bottom:2px">要复习的卡：盖住中文能说出来就点一下</div>${d.reviews.map(v => `<span class="pill ${v.done ? 'on' : ''}" data-rv="${v.day}:${v.stage}:${v.done ? 0 : 1}">${v.done ? '✓ ' : ''}Day ${v.day} · ${v.name}${!v.done && v.late > 0 ? ` <span style="color:var(--warn)">晚${v.late}天</span>` : ''}</span>`).join('')}
-        ${pend.length ? '<div style="margin-top:10px"><button class="btn soft sm" id="seerev">去看要复习的卡</button></div>' : ''}</div>` : ''}</div>`;
+      ${c.learned_today ? '' : `<div class="faint" style="margin-top:8px">先跟读，再用"遮中文"自测，对 ${PASS} 个就自动背完（现在最好 ${testBest(c.day)}/20）</div>`}
+      ${d.reviews.length ? `<div style="margin-top:14px"><div class="faint" style="margin-bottom:2px">要复习的卡：点开自测，对 ${PASS} 个自动完成</div>${d.reviews.map(v => `<span class="pill ${v.done ? 'on' : ''}" data-rv="${v.day}">${v.done ? '✓ ' : ''}Day ${v.day} · ${v.name}${!v.done && v.late > 0 ? ` <span style="color:var(--warn)">晚${v.late}天</span>` : ''}</span>`).join('')}</div>` : ''}</div>`;
   if (d.wenyan.week) x += `<div class="card"><div class="mini"><div class="ic" style="background:var(--gold-soft)">📜</div>
       <div style="flex:1"><h2>文言文</h2><div class="sub">${esc(d.wenyan.week.label)} · ${d.wenyan.week.start.slice(5).replace('-', '/')}–${d.wenyan.week.end.slice(5).replace('-', '/')}</div></div></div>
       <div style="margin-top:8px">${d.wenyan.items.map(it => `<div class="task" data-openwy="${it.idx}"><span class="kai lbl" style="font-size:19px;text-decoration:none;color:var(--ink)">${esc(it.t)}</span><span class="faint">${it.checks.length}/5 ›</span></div>`).join('')}</div></div>`;
@@ -549,15 +611,21 @@ async function today() {
   groups.forEach(([name, f]) => {
     const ts = d.tasks.filter(f); if (!ts.length) return;
     x += `<div class="card" style="padding:6px 18px"><div class="faint" style="padding:10px 0 2px">${name}</div>` + ts.map(t => `<div class="task ${t.done ? 'done' : ''}" data-task="${t.id}" data-done="${t.done ? 0 : 1}" data-type="${t.type}">
-        <span class="check">${t.done ? '✓' : ''}</span><span class="lbl">${t.id === 'listen' ? '听力：英文故事（至少 1 集）' : esc(t.label)}${t.type === 'word' && c.day ? ` <span class="faint">Day ${c.day}</span>` : ''}</span>
+        <span class="check">${t.done ? '✓' : ''}</span><span class="lbl">${coreIds.includes(t.id) ? '<span class="tag" style="background:var(--pri-soft);color:var(--pri);margin-right:6px">必做</span>' : ''}${t.id === 'listen' ? '听力：英文故事（至少 1 集）' : esc(t.label)}${t.type === 'word' && c.day ? ` <span class="faint">Day ${c.day}</span>` : ''}</span>
         <span style="text-align:right"><span class="tm">${t.time}</span><br><span class="pt">+${t.type === 'word' ? 2 : 1}⭐</span></span></div>`).join('') + `</div>`;
   });
+  x += `<button class="btn block" id="share" style="margin-top:6px">📤 把今天的情况发给家长</button>`;
   app.innerHTML = x;
 
+  $('#share').onclick = async () => {
+    const text = daySummary(d.date);
+    try { if (navigator.share) { await navigator.share({text}); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(text); toast('已复制，去微信粘贴发给家长'); } catch (e) { toast('复制不了，请截图发给家长'); }
+  };
   $$('[data-lv]').forEach(b => b.onclick = () => { retellLv = +b.dataset.lv; render(); });
   $$('[data-sayw]').forEach(b => b.onclick = () => sayEn(b.dataset.sayw));
   let rTarget = null;
-  const rFill = (k, text) => { retellSaid[retellLv + '-' + k] = text; toast('说得好！👍'); render(); };
+  const rFill = (k, text) => { retellSaid[retellLv + '-' + k] = text; noteSaid(text); toast('说得好！👍'); render(); };
   $$('[data-rmic]').forEach(b => b.onclick = async () => {
     const k = +b.dataset.rmic;
     const openIn = () => { rTarget = k; $('#rIn').hidden = false; $('#rIn input').value = ''; $('#rIn input').focus(); };
@@ -575,25 +643,24 @@ async function today() {
   $('#prev').onclick = () => { state.date = addDays(state.date, -1); render(); };
   if ($('#next')) { $('#next').onclick = () => { state.date = addDays(state.date, 1); render(); }; $('#tod').onclick = () => { state.date = todayIso(); render(); }; }
   if ($('#claimDaily')) $('#claimDaily').onclick = () => go('rewards');
-  if ($('#opencard')) $('#opencard').onclick = () => { state.cardDay = c.day; go('words'); };
-  if ($('#seerev')) $('#seerev').onclick = () => { state.cardDay = pend[0].day; go('words'); };
+  if ($('#opencard')) $('#opencard').onclick = () => { state.cardDay = c.day; state.mode = 'all'; go('words'); };
   $$('[data-openwy]').forEach(b => b.onclick = () => { state.wy = +b.dataset.openwy; go('wenyan'); });
-  $$('[data-rv]').forEach(el => el.onclick = async () => {
-    const [day, stage, on] = el.dataset.rv.split(':').map(Number);
-    await api('/api/review', {day, stage, done: !!on, date: state.date}); if (on) toast('复习完成 +1⭐'); render();
-  });
+  $$('[data-rv]').forEach(el => el.onclick = () => { state.cardDay = +el.dataset.rv; state.mode = 'zh'; go('words'); });
   $$('[data-task]').forEach(el => el.onclick = async () => {
-    const on = el.dataset.done === '1';
-    if (on && el.dataset.type === 'word' && confirmWord !== el.dataset.task + state.date) { confirmWord = el.dataset.task + state.date; toast('先把单词卡背完，再点一次确认'); return; }
-    confirmWord = null;
-    const before = rewardsState(state.date).daily.unlocked;
-    await api('/api/task', {date: state.date, task: el.dataset.task, done: on});
-    const after = rewardsState(state.date).daily.unlocked;
-    toast(on ? (!before && after ? '🎉 全部完成！解锁今日奖励' : el.dataset.type === 'word' ? '单词背完 +2⭐' : '完成 +1⭐') : '已取消');
-    render();
+    const on = el.dataset.done === '1', task = el.dataset.task;
+    const doIt = async pin => {
+      const before = rewardsState(state.date).daily.unlocked;
+      const res = await api('/api/task', {date: state.date, task, done: on, pin});
+      if (res.error === 'needtest') { toast(`先去自测，对 ${PASS} 个就自动打勾`); state.cardDay = res.day; state.mode = 'zh'; go('words'); return res; }
+      if (res.error === 'needpin') { if (pin !== undefined) return {error: '家长密码不对'}; askPin('补打卡（3 天前的要家长确认）', p => doIt(p)); return {}; }
+      if (res.error) { if (pin === undefined) toast(res.error); return res; }
+      const after = rewardsState(state.date).daily.unlocked;
+      toast(on ? (!before && after ? '🎉 必做完成！解锁今日奖励' : el.dataset.type === 'word' ? '单词背完 +2⭐' : '完成 +1⭐') : '已取消');
+      render(); return res;
+    };
+    doIt();
   });
 }
-let confirmWord = null;
 /* 复述：三个难度 + 词语提示板（点词听发音）；说一句就算完成，可以中英夹杂 */
 const RETELL = [
   ['⭐ 说一句', [['I like ___ because he is ___.', 'I like Monkey King because he is strong.'], ['Today I watched ___.', 'Today I watched Journey to the West.']]],
@@ -698,6 +765,10 @@ async function words() {
     ${meta.learned ? `<div class="faint" style="margin-top:4px">复习：${['次日', '第4天', '第7天'].map((n, i) => (meta.reviews.includes(i + 1) ? '✓' : '○') + n).join('　')}</div>` : ''}
     <div class="seg" style="margin:14px 0">${[['all', '跟读'], ['zh', '遮中文 · 说中文'], ['en', '遮英文 · 说英文']].map(([k, t]) => `<button data-mode="${k}" class="${m === k ? 'on' : ''}">${t}</button>`).join('')}</div>
     <div class="faint" style="margin:0 4px">${m === 'all' ? '点 🔊 听发音，跟读两遍，每个词说一句话' : m === 'zh' ? '点 🔊 听英文，再点 🎤 用中文说出意思' : '看中文，点 🎤 一个字母一个字母拼出来（直接说单词也算想起来了）'}</div>
+    ${(() => { const due = reviewsDue(todayIso()).find(v => v.day === day && !v.done);
+      if (due) return `<div class="warn" style="margin-top:12px">🔁 复习 Day ${day}（${due.name}）：用"遮中文"自测，对 ${PASS} 个自动完成复习</div>`;
+      if (!meta.learned && day === list.current) return `<div class="warn" style="margin-top:12px;background:var(--pri-soft);color:var(--pri)">📝 先跟读，再用"遮中文"自测，对 ${PASS} 个就自动背完（最好成绩 ${testBest(day)}/20）</div>`;
+      return ''; })()}
     ${testing ? `<div class="card" style="padding:14px 18px"><div class="row between"><b>自测 ${okN}/${card.words.length}</b><button class="btn soft sm" id="qreset">重来</button></div>
       <div class="bar" style="margin-top:8px"><i style="width:${okN / card.words.length * 100}%"></i></div>
       ${wrong.length ? `<div class="faint" style="margin-top:8px">再看看：${wrong.map(w => esc(w.w)).join('、')}</div>` : ''}</div>` : ''}
@@ -730,7 +801,11 @@ async function words() {
     const r = m === 'zh' ? (judgeZh(alts, w.zh) ? 'ok' : 'no') : (judgeEn(alts, w.w) || 'no');
     quiz[i] = r;
     quiz['h' + i] = m === 'en' && /^([a-z][\s\-.,]+){2,}[a-z]\W*$/i.test(alts[0].trim()) ? alts[0].trim().replace(/[\s.,]+/g, '-').replace(/-+/g, '-').toLowerCase() : alts[0];
-    toast(r === 'no' ? '差一点～看看正确答案' : r === 'spell' ? '拼对了！👏' : '对了！👍');
+    const ok = Object.entries(quiz).filter(([k, v]) => /^\d+$/.test(k) && v !== 'no').length;
+    const res = LOCAL['POST /api/wordtest']({day, ok});
+    if (res.learned) toast(`🎉 Day ${day} 背完了！+2⭐`);
+    else if (res.reviewed) toast(`🔁 Day ${day} ${res.reviewed}复习完成 +1⭐`);
+    else toast(r === 'no' ? '差一点～看看正确答案' : r === 'spell' ? '拼对了！👏' : '对了！👍');
     render();
   };
   const showInput = i => { const el = document.querySelector(`[data-in="${i}"]`); el.hidden = false; el.querySelector('input').focus(); };
@@ -872,11 +947,14 @@ async function parent() {
     <div class="card"><h2>🎁 成长大奖的奖品</h2><div class="sub" style="margin:4px 0 10px">现在：${esc(bigName())}</div>
       <input id="bn" placeholder="例如：去一次蹦床馆 / 一盒巧克力"><button class="btn sm" id="bnSave" style="margin-top:10px">保存</button></div>
     <div class="card"><h2>🎧 英文故事链接（孩子听力时自己选）</h2>
-      ${listenLinks().map((l, k) => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--line)"><span>📺 ${esc(l.name)}</span><button class="btn soft sm" data-ldel="${k}">删除</button></div>`).join('') || '<div class="sub" style="margin-top:4px">还没有</div>'}
+      ${listenLinks().map((l, k) => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--line)"><span>${l.cat === 'fun' ? '🌟' : '📺'} ${esc(l.name)}</span><button class="btn soft sm" data-ldel="${k}">删除</button></div>`).join('') || '<div class="sub" style="margin-top:4px">还没有</div>'}
       <div class="faint" style="margin:12px 0 8px">抖音打开合集 → 分享 → 复制链接，整段粘贴到下面，再起个名字</div>
       <textarea id="lu" rows="3" style="font-size:13px" placeholder="粘贴抖音分享内容"></textarea>
-      <input id="ln" placeholder="名字，如：西游英语" style="margin-top:8px">
+      <div class="row" style="margin-top:8px"><input id="ln" placeholder="名字，如：西游英语"><select id="lc" style="font:inherit;padding:10px;border-radius:13px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)"><option value="en">英语故事</option><option value="fun">课外兴趣</option></select></div>
       <button class="btn sm" id="luSave" style="margin-top:10px">添加</button></div>
+    <div class="card"><h2>📦 导入设置 / 链接包</h2><div class="sub" style="margin:4px 0 10px">更新任务表、批量加链接时，把 Claude 给的那条长链接粘贴到这里</div>
+      <textarea id="pk" rows="3" style="font-size:12px" placeholder="粘贴 https://…#setup=… 整条"></textarea>
+      <button class="btn sm" id="pkGo" style="margin-top:10px">导入</button></div>
     <div class="card"><h2>🔑 修改家长密码</h2><input id="np" type="password" inputmode="numeric" placeholder="新密码（至少 4 位）" style="margin-top:10px"><button class="btn sm" id="setpin" style="margin-top:10px">修改</button></div>
     <div class="card"><h2>💾 备份（建议每周一次）</h2>
       <div class="sub" style="margin-top:4px">打卡记录只存在这部手机里。换手机或清理 Safari 数据前，先导出备份。</div>
@@ -884,14 +962,16 @@ async function parent() {
       <label class="btn soft sm">导入备份文件<input type="file" id="impf" accept=".json,application/json,text/plain" hidden></label></div>
       <textarea id="bk" rows="3" style="margin-top:10px;font-size:12px" placeholder="也可以把备份文字粘贴到这里"></textarea>
       <button class="btn soft sm" id="impt" style="margin-top:8px">用粘贴的文字恢复</button>
-      <div class="faint" style="margin-top:8px">上次保存：${DATA.savedAt ? esc(new Date(DATA.savedAt).toLocaleString('zh-CN', {hour12: false}).slice(0, -3)) : '还没有'}</div></div>`;
+      <div class="faint" style="margin-top:8px">上次备份：${DATA.lastBackup ? DATA.lastBackup.slice(5).replace('-', '/') : '还没有'}${backupDue() ? ' <b style="color:var(--warn)">· 该备份了</b>' : ''}　上次保存：${DATA.savedAt ? esc(new Date(DATA.savedAt).toLocaleString('zh-CN', {hour12: false}).slice(0, -3)) : '还没有'}</div></div>`;
   app.innerHTML = x;
-  $('#luSave').onclick = () => { const u = $('#lu').value, n = $('#ln').value; if (!u.trim() || !n.trim()) { toast('链接和名字都要填'); return; } askPin('添加英文故事', async p => { const r = await api('/api/listen', {pin: p, url: u, name: n}); if (!r.error) { toast('已添加'); render(); } return r; }); };
+  $('#luSave').onclick = () => { const u = $('#lu').value, n = $('#ln').value; if (!u.trim() || !n.trim()) { toast('链接和名字都要填'); return; } askPin('添加英文故事', async p => { const r = await api('/api/listen', {pin: p, url: u, name: n, cat: $('#lc').value}); if (!r.error) { toast('已添加'); render(); } return r; }); };
+  $('#pkGo').onclick = () => { const v = $('#pk').value; if (!v.trim()) { toast('请先粘贴'); return; } askPin('导入设置 / 链接包', async p => { if (String(p) !== String(pin())) return {error: '家长密码不对'}; if (!applySetupCode(v)) return {error: '内容不完整，请重新复制整条'}; toast('导入成功'); render(); return {ok: true}; }); };
   $$('[data-ldel]').forEach(b => b.onclick = () => askPin('删除这个链接', async p => { const r = await api('/api/listen/del', {pin: p, idx: b.dataset.ldel}); if (!r.error) { toast('已删除'); render(); } return r; }));
   $('#bnSave').onclick = () => { const v = $('#bn').value; if (!v.trim()) { toast('请先填写奖品'); return; } askPin('修改成长大奖', async p => { const r = await api('/api/settings', {pin: p, bigName: v}); if (!r.error) { toast('已保存'); render(); } return r; }); };
   $('#setpin').onclick = () => { const v = $('#np').value; if (v.trim().length < 4) { toast('新密码至少 4 位'); return; } askPin('先输入原密码', async p => { const r = await api('/api/pin', {pin: p, newpin: v}); if (!r.error) { toast('密码已修改'); render(); } return r; }); };
   $('#exp').onclick = async () => {
     const text = exportBackup(), name = '学习打卡备份_' + todayIso() + '.json';
+    markBackup();
     try {
       const f = new File([text], name, {type: 'application/json'});
       if (navigator.canShare && navigator.canShare({files: [f]})) { await navigator.share({files: [f], title: name}); return; }
