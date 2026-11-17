@@ -275,16 +275,22 @@ function b64decodeUtf8(s) {
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return new TextDecoder().decode(bytes);
 }
-function applySetupFromHash() {
-  const m = location.hash.match(/^#setup=(.+)$/);
+function applySetupCode(text) {
+  const m = String(text || '').trim().match(/setup=([A-Za-z0-9_\-]+)/);
   if (!m) return false;
   try {
     const cfg = JSON.parse(b64decodeUtf8(m[1]));
-    if (!cfg.weekday) throw new Error('bad');
+    if (!cfg.weekday) return false;
     CFG = cfg; lsSet(LS_CFG, cfg); ensureRewards();
-    history.replaceState(null, '', location.pathname);
     return true;
-  } catch (e) { alert('设置链接不完整，请重新复制'); return false; }
+  } catch (e) { return false; }
+}
+function applySetupFromHash() {
+  if (!/^#setup=/.test(location.hash)) return false;
+  const ok = applySetupCode(location.hash);
+  history.replaceState(null, '', location.pathname);
+  if (!ok) alert('设置链接不完整，请重新复制');
+  return ok;
 }
 function exportBackup() {
   return JSON.stringify({kind: 'study-backup', v: 1, at: new Date().toISOString(), cfg: CFG, data: DATA});
@@ -510,9 +516,12 @@ async function stars() {
 
 const setupOk = applySetupFromHash();
 if (!CFG) {
-  app.innerHTML = `<div class="card" style="margin-top:40px"><h2>👋 第一次使用</h2><p>请家长用发给你的<b>设置链接</b>在这部手机的 Safari 里打开一次，任务表就会存进手机。</p>
-    <p class="sub">已经有备份文件？</p><label class="btn ghost small" style="display:inline-block">导入备份文件<input type="file" id="impf0" accept=".json,application/json,text/plain" hidden></label></div>`;
+  app.innerHTML = `<div class="card" style="margin-top:40px"><h2>👋 第一次使用</h2><p>请家长把<b>设置链接</b>整条复制，粘贴到下面，点“完成设置”。</p>
+    <textarea id="setupIn" rows="4" style="width:100%;font-size:12px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);padding:8px" placeholder="粘贴 https://…#setup=… 整条链接"></textarea>
+    <button class="btn" id="setupBtn" style="margin-top:8px">完成设置</button>
+    <p class="sub" style="margin-top:16px">已经有备份文件？</p><label class="btn ghost small" style="display:inline-block">导入备份文件<input type="file" id="impf0" accept=".json,application/json,text/plain" hidden></label></div>`;
   $('#nav').hidden = true;
+  $('#setupBtn').onclick = () => { if (applySetupCode($('#setupIn').value)) location.reload(); else toast('链接不完整，请重新复制整条'); };
   $('#impf0').onchange = async e => { try { importBackup(await e.target.files[0].text()); location.reload(); } catch (err) { toast(err.message || '文件不对'); } };
 } else {
   if (setupOk) setTimeout(() => toast('设置成功！可以开始打卡了'), 300);
