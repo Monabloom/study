@@ -194,6 +194,7 @@ const diffDays = (a, b) => Math.round((new Date(a + 'T00:00') - new Date(b + 'T0
 const EVENING = [['homework', '学校作业', '18:30'], ['reading', '英语阅读 1 篇', '19:30'], ['listen2', '英语听力 1 篇', '19:45'], ['math', '数学计算 15 分钟', '20:00'],
   ['word', 'PET 单词 20 个', '20:15', 'word'], ['ket', 'KET 复习 20 个', '20:35', 'ket'], ['wenyan', '文言文 1 篇', '20:50', 'wenyan'], ['abc', 'ABC Reading 2 本', '21:00'],
   ['bedread', '阅读 20 分钟', '21:30']];
+const LIGHT = ['listen2', 'math', 'abc'];   // 有晚课的晚上这几项可以不做
 const MORNING = {school: '07:30', sat: '08:30', sun: '08:30', rest: '09:00'};
 const ROUTINE = Object.fromEntries(Object.entries(MORNING).map(([k, t]) => [k, [['listen', '听力：英文动画', t], ...EVENING]]));
 function dayKind(date) {
@@ -210,9 +211,15 @@ function tasksFor(date) {
   if (!CFG) return [];
   if (CFG.sched) {
     const s = CFG.sched[date] || {};
-    const base = ROUTINE[dayKind(date)].map(t => ({id: t[0], label: t[1], time: t[2], type: t[3] || ''}));
+    const kind = dayKind(date);
     const cls = (s.c || []).map(([label, time], k) => ({id: 'c' + k, label, time: time || '', type: 'class'}));
-    return base.concat(cls).sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
+    const nightClass = cls.some(c => c.time >= '17:00');
+    const base = ROUTINE[kind].map(t => ({id: t[0], label: t[1], time: t[2], type: t[3] || '', opt: nightClass && LIGHT.includes(t[0])}));
+    const extra = [];
+    if (kind !== 'school') extra.push({id: 'sport', label: '户外 / 篮球 1 小时', time: '16:00', type: 'bonus', opt: true});
+    if (kind === 'sat') extra.push({id: 'ewrite', label: '英文小作文 3～5 句', time: '17:30', type: 'bonus', opt: true});
+    if (kind === 'sun') extra.push({id: 'dict', label: '拼写听写（程序念中文）', time: '17:00', type: 'dict'}, {id: 'goodsent', label: '好句积累：抄 2 句、仿写 1 句', time: '17:20', type: 'bonus', opt: true});
+    return base.concat(cls, extra).sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
   }
   let lst = (CFG.dates || {})[date];
   if (!lst) { lst = CFG.weekday[String(isoWeekday(date))]; while (typeof lst === 'string') lst = CFG.weekday[lst]; }
@@ -221,7 +228,7 @@ function tasksFor(date) {
 function star(key, amount, date, note) { DATA.stars[key] = {key, amount, date, note, at: Date.now()}; }
 function unstar(key) { delete DATA.stars[key]; }
 function dayProgress(date) {
-  const tasks = tasksFor(date), done = DATA.taskDone[date] || {};
+  const tasks = tasksFor(date).filter(t => !t.opt || (DATA.taskDone[date] || {})[t.id]), done = DATA.taskDone[date] || {};
   return [tasks.filter(t => done[t.id]).length, tasks.length];
 }
 const CORE = ['word', 'ket', 'listen', 'reading', 'bedread'];   // 必做：做完就解锁当天奖励
@@ -283,6 +290,7 @@ const LOCAL = {
     if (date > today) return {error: '不能提前打卡哦'};
     if (date < addDays(today, -1) && String(b.pin) !== String(pin())) return {error: 'needpin'};
     if (done && t.type === 'ket' && !ketDoneOn(date)) return {error: 'needket'};
+    if (done && t.type === 'dict' && !(((DATA.dict || {})[date] || {}).done)) return {error: 'needdict'};
     if (done && t.type === 'word' && !learnedOn(date)) {
       const cur = currentCard();
       if (cur && testBest(cur) < PASS) return {error: 'needtest', day: cur};
@@ -594,6 +602,26 @@ async function syncSchedule() {
     lsSet(LS_CFG, CFG); return true;
   } catch (e) { return false; }
 }
+
+/* ---------- 周日拼写听写：KET 生词 + 本周 PET 单词随机，最多 25 个 ---------- */
+function dictList(date) {
+  DATA.dict = DATA.dict || {};
+  if (DATA.dict[date]) return DATA.dict[date].items;
+  const mon = addDays(date, 1 - isoWeekday(date));
+  const ketW = Object.values(ketState().wrong).map(v => v.item).slice(0, 12);
+  const petW = Object.entries(DATA.wordLearn).filter(([, d]) => d >= mon && d <= date).flatMap(([day]) => CARDS[+day - 1].words);
+  for (let i = petW.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [petW[i], petW[j]] = [petW[j], petW[i]]; }
+  const items = [...ketW, ...petW].filter((w, i, a) => a.findIndex(x => x.w === w.w) === i).slice(0, 25).map(w => ({w: w.w, ipa: w.ipa, zh: w.zh}));
+  DATA.dict[date] = {items, res: {}}; save(); return items;
+}
+LOCAL['POST /api/dict/finish'] = b => {
+  const date = todayStr(), d = (DATA.dict || {})[date]; if (!d) return {error: 'no list'};
+  d.res = b.res || {}; d.done = true;
+  d.items.forEach(w => { if (d.res[w.w] === 0) LOCAL['POST /api/ket/result']({item: w, ok: false}); });
+  const t = tasksFor(date).find(x => x.type === 'dict');
+  if (t) { DATA.taskDone[date] = DATA.taskDone[date] || {}; DATA.taskDone[date][t.id] = Date.now(); star(`task:${date}:${t.id}`, 2, date, '拼写听写'); refreshBonus(date); }
+  save(); return {ok: true, wrong: Object.values(d.res).filter(v => v === 0).length};
+};
 </script>
 <script>
 const $ = s => document.querySelector(s);
@@ -620,7 +648,7 @@ function go(v) {
   render(); scrollTo(0, 0);
 }
 $$('nav button').forEach(b => b.onclick = () => { if (b.dataset.v === 'wenyan') state.wy = null; if (b.dataset.v === 'words') state.cardDay = null; if (b.dataset.v === 'today') state.date = todayIso(); go(b.dataset.v); });
-async function render() { await ({today, words, wenyan, rewards, parent})[state.view](); }
+async function render() { await ({today, words, wenyan, rewards, parent, dict: dictView})[state.view](); }
 
 /* 家长密码弹层 */
 function askPin(title, onOk) {
@@ -716,10 +744,11 @@ async function today() {
       <div style="margin-top:8px">${d.wenyan.items.map(it => `<div class="task" data-openwy="${it.idx}"><span class="kai lbl" style="font-size:19px;text-decoration:none;color:var(--ink)">${esc(it.t)}</span><span class="faint">${it.checks.length}/5 ›</span></div>`).join('')}</div></div>`;
 
   x += `<div class="sec-title">今日任务</div>`;
+  if (d.tasks.some(t => t.opt && t.type !== 'bonus')) x += `<div class="warn" style="margin-bottom:4px">📅 今晚有课：英语听力、数学计算、ABC 可以不做，做了照样加星星</div>`;
   groups.forEach(([name, f]) => {
     const ts = d.tasks.filter(f); if (!ts.length) return;
     x += `<div class="card" style="padding:6px 18px"><div class="faint" style="padding:10px 0 2px">${name}</div>` + ts.map(t => `<div class="task ${t.done ? 'done' : ''}" data-task="${t.id}" data-done="${t.done ? 0 : 1}" data-type="${t.type}">
-        <span class="check">${t.done ? '✓' : ''}</span><span class="lbl">${coreIds.includes(t.id) ? '<span class="tag" style="background:var(--pri-soft);color:var(--pri);margin-right:6px">必做</span>' : t.type === 'class' ? '<span class="tag" style="background:var(--gold-soft);color:var(--warn);margin-right:6px">课</span>' : ''}${t.id === 'listen' ? '听力：英文动画（至少 1 集）' : t.id === 'wenyan' && d.wenyan.week ? `文言文：${esc(d.wenyan.week.label)}` : esc(t.label)}${t.type === 'word' && c.day ? ` <span class="faint">Day ${c.day}</span>` : ''}</span>
+        <span class="check">${t.done ? '✓' : ''}</span><span class="lbl">${coreIds.includes(t.id) ? '<span class="tag" style="background:var(--pri-soft);color:var(--pri);margin-right:6px">必做</span>' : t.type === 'class' ? '<span class="tag" style="background:var(--gold-soft);color:var(--warn);margin-right:6px">课</span>' : t.type === 'bonus' ? '<span class="tag" style="background:var(--ok-soft);color:var(--ok);margin-right:6px">加分</span>' : ''}${t.id === 'listen' ? '听力：英文动画（至少 1 集）' : t.id === 'wenyan' && d.wenyan.week ? `文言文：${esc(d.wenyan.week.label)}` : esc(t.label)}${t.type === 'word' && c.day ? ` <span class="faint">Day ${c.day}</span>` : ''}${t.opt && t.type !== 'bonus' ? ' <span class="faint">（今晚有课，可不做）</span>' : ''}</span>
         <span style="text-align:right"><span class="tm">${t.time}</span><br><span class="pt">+${t.type === 'word' || t.type === 'ket' ? 2 : 1}⭐</span></span></div>`).join('') + `</div>`;
   });
   x += `<button class="btn block" id="share" style="margin-top:6px">📤 把今天的情况发给家长</button>`;
@@ -761,6 +790,7 @@ async function today() {
     const doIt = async pin => {
       const before = rewardsState(state.date).daily.unlocked;
       const res = await api('/api/task', {date: state.date, task, done: on, pin});
+      if (res.error === 'needdict') { state.view = 'dict'; state.di = 0; render(); scrollTo(0, 0); return res; }
       if (res.error === 'needket') { toast('先把 KET 复习过一遍，完成后自动打勾'); state.deck = 'ket'; go('words'); return res; }
       if (res.error === 'needtest') { toast(`先去自测，对 ${PASS} 个就自动打勾`); state.cardDay = res.day; state.mode = 'zh'; state.deck = 'pet'; go('words'); return res; }
       if (res.error === 'needpin') { if (pin !== undefined) return {error: '家长密码不对'}; askPin('补打卡（3 天前的要家长确认）', p => doIt(p)); return {}; }
@@ -990,6 +1020,29 @@ async function ketView() {
     if (!s.finished && items.every(v => v.w in marks)) { await api('/api/ket/finish', {day: s.day}); toast('🎉 今天的 KET 复习完成 +2⭐'); }
     render();
   });
+}
+
+/* ---------- 周日拼写听写：程序念中文，孩子写在纸上，最后对答案 ---------- */
+function sayZh(t) { speakQueue([[String(t).replace(/[a-z.()（）]+/gi, ' ').replace(/\s+/g, ' '), 'zh-CN', .85]]); }
+async function dictView() {
+  const t = todayIso(), items = dictList(t), D = DATA.dict[t], i = state.di || 0;
+  let x = `<button class="btn soft sm" style="margin-top:8px" id="back">‹ 回到今天</button><h1>拼写听写</h1>
+    <div class="sub">准备一张纸和笔。程序念中文，你写英文。共 ${items.length} 个</div>`;
+  if (!items.length) x += '<div class="card">这周还没有要听写的词 👍</div>';
+  else if (D.done) x += `<div class="card">今天的听写已完成 ✅，写错 ${Object.values(D.res).filter(v => v === 0).length} 个，已加入生词复习</div>`;
+  else if (i < items.length) x += `<div class="card" style="text-align:center;padding:30px 18px"><div class="faint">第 ${i + 1} / ${items.length} 个</div>
+      <div style="font-size:28px;font-weight:800;margin:14px 0">${esc(items[i].zh)}</div>
+      <div class="row" style="justify-content:center;margin-top:10px"><button class="btn soft" id="again">🔊 再念一遍</button><button class="btn" id="nextw">写好了 ›</button></div></div>`;
+  else x += `<div class="card"><h2>对答案</h2><div class="faint" style="margin:4px 0 8px">看看纸上写的，对的点 ✓，错的点 ✗</div>` +
+      items.map((w, k) => `<div class="wrow"><span class="n">${k + 1}</span><div class="en"><b>${esc(w.w)}</b><span>${esc(w.ipa)}</span></div><div class="zh">${esc(w.zh)}</div>
+        <div class="row" style="gap:6px"><button class="say" data-r="${k}:1" style="${D.res[w.w] === 1 ? 'background:var(--ok);color:#fff' : 'background:var(--ok-soft);color:var(--ok)'}">✓</button><button class="say" data-r="${k}:0" style="${D.res[w.w] === 0 ? 'background:var(--warn);color:#fff' : 'background:var(--warn-soft);color:var(--warn)'}">✗</button></div></div>`).join('') +
+      `<button class="btn block" id="dfin" style="margin-top:12px" ${items.every(w => w.w in D.res) ? '' : 'disabled'}>完成听写</button></div>`;
+  app.innerHTML = x;
+  $('#back').onclick = () => { state.view = 'today'; go('today'); };
+  if ($('#again')) { $('#again').onclick = () => sayZh(items[i].zh); if (!state.dSaid || state.dSaid !== t + i) { state.dSaid = t + i; sayZh(items[i].zh); } }
+  if ($('#nextw')) $('#nextw').onclick = () => { state.di = i + 1; render(); };
+  $$('[data-r]').forEach(b => b.onclick = () => { const [k, v] = b.dataset.r.split(':').map(Number); D.res[items[k].w] = v; save(); render(); });
+  if ($('#dfin')) $('#dfin').onclick = async () => { const r = await api('/api/dict/finish', {res: D.res}); toast(`听写完成 +2⭐${r.wrong ? `，${r.wrong} 个进生词复习` : ''}`); state.view = 'today'; go('today'); };
 }
 
 /* ---------- 文言文 ---------- */
