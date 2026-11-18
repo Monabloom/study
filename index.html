@@ -147,6 +147,27 @@ input,textarea{font:inherit;font-size:16px;padding:11px 13px;border-radius:13px;
 @keyframes up{from{transform:translateY(40px);opacity:0}}
 .toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 14px);transform:translateX(-50%) translateY(-10px);background:var(--ink);color:var(--card);padding:11px 18px;border-radius:14px;font-weight:700;font-size:14px;z-index:30;opacity:0;transition:.25s;pointer-events:none;white-space:nowrap}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+/* today v2 */
+.wk{display:flex;align-items:center;gap:6px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);cursor:pointer}
+.wk i{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:800;border:2px solid var(--line);color:var(--faint);flex:none}
+.wk i.full{background:var(--ok);border-color:var(--ok);color:#fff}
+.wk i.miss{background:var(--warn-soft);border-color:var(--warn-soft);color:var(--warn)}
+.wk i.today{border-color:var(--pri);color:var(--pri)}
+.wk i.skip{border-style:dashed}
+.wk span{font-size:13px;color:var(--sub);margin-left:4px;line-height:1.3}
+.grp{padding:4px 18px}
+.grp summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 0 6px;cursor:pointer;font-weight:700;font-size:14px;color:var(--sub)}
+.grp summary::-webkit-details-marker{display:none}
+.grp summary:after{content:'›';transform:rotate(90deg);color:var(--faint);margin-left:8px;transition:.2s}
+.grp:not([open]) summary{padding-bottom:10px}
+.grp:not([open]) summary:after{transform:none}
+.grp summary span:first-child{flex:1}
+.task .lbl small{display:block;color:var(--faint);font-size:12.5px;margin-top:2px;line-height:1.4}
+.task .lbl small .pill{padding:3px 8px;font-size:12px;margin:3px 4px 0 0}
+.task .tm{text-align:right;flex:none}
+.tag.pri{background:var(--pri-soft);color:var(--pri);margin-right:6px}
+.tag.cls{background:var(--gold-soft);color:var(--warn);margin-right:6px}
+.tag.ok{background:var(--ok-soft);color:var(--ok);margin-right:6px}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -500,14 +521,27 @@ LOCAL['POST /api/settings'] = b => {
 };
 LOCAL['GET /api/claims'] = () => Object.entries(DATA.claims).map(([key, v]) => ({key, ...v})).sort((a, b) => b.at - a.at);
 
-/* ---------- 早上听力：抖音「西游英语」合集链接（家长页设置，不进公开代码）；不限集数 ---------- */
+/* ---------- 素材库：抖音链接（家长页设置，不进公开代码）；按类别分 ---------- */
+const CATS = [['en', '🎬', '英语'], ['cn', '📖', '语文'], ['his', '🏛', '历史'], ['sci', '🔬', '科学·数学'], ['fun', '🌟', '其他']];
+const catOf = l => CATS.some(c => c[0] === l.cat) ? l.cat : 'en';
+const REC_V2 = ['-hBzuN4_U5U', '9n0q3TCx7UA', '37rqYELFYyk', 'SMBuUWrxyaI', 'HmnArL4YfzE', 'CaHQlrVfQUk', 'ImdSTrsRZp4', '0m9dZI6VzPo'];   // 11/18 家长给的新素材（已审）
 function listenLinks() {
   const st = settings();
   if (!st.listenLinks) { st.listenLinks = st.listenUrl ? [{name: st.listenName || '西游英语', url: st.listenUrl}] : []; }
-  if (!st.recSeeded && typeof RECOMMENDED !== 'undefined') {   // 新设备第一次自动带上推荐动画；删光后不会再自动加
+  if (!st.recSeeded && typeof RECOMMENDED !== 'undefined') {   // 新设备第一次自动带上推荐素材；删光后不会再自动加
     const have = new Set(st.listenLinks.map(l => l.url));
     RECOMMENDED.forEach(l => { if (!have.has(l.url)) st.listenLinks.push({...l}); });
-    st.recSeeded = true; save();
+    st.recSeeded = true; st.recVer = 2; save();
+  }
+  if ((st.recVer || 0) < 2) {   // 11/18：旧西游英语（有中文讲解）换成全英文合集；按新类别归类；补上新素材
+    const rec = new Map(RECOMMENDED.map(l => [l.url, l]));
+    st.listenLinks = st.listenLinks.filter(l => !/西游/.test(l.name) || rec.has(l.url));
+    st.listenLinks.forEach(l => { const r = rec.get(l.url); if (r) { l.cat = r.cat; l.name = r.name; } });
+    const have = new Set(st.listenLinks.map(l => l.url));
+    RECOMMENDED.filter(l => REC_V2.some(id => l.url.includes(id)) && !have.has(l.url)).forEach(l => st.listenLinks.push({...l}));
+    const xy = st.listenLinks.findIndex(l => /西游/.test(l.name));
+    if (xy > 0) st.listenLinks.unshift(...st.listenLinks.splice(xy, 1));   // 西游记放第一个
+    st.recVer = 2; save();
   }
   const bad = l => /#setup=|monabloom\.github\.io|127\.0\.0\.1/.test(l.url);
   if (st.listenLinks.some(bad)) { st.listenLinks = st.listenLinks.filter(l => !bad(l)); save(); }
@@ -520,7 +554,7 @@ LOCAL['POST /api/listen'] = b => {
   if (!url) return {error: '没找到链接，请把抖音"复制链接"的内容整段粘贴'};
   const name = String(b.name || '').trim();
   if (!name) return {error: '请给这个故事起个名字'};
-  listenLinks().push({name, url: url[0], cat: b.cat === 'fun' ? 'fun' : 'en'}); save(); return {ok: true};
+  listenLinks().push({name, url: url[0], cat: catOf({cat: b.cat})}); save(); return {ok: true};
 };
 LOCAL['POST /api/listen/del'] = b => {
   if (String(b.pin) !== String(pin())) return {error: '家长密码不对'};
@@ -544,8 +578,8 @@ function daySummary(date) {
 }
 function noteSaid(text) { const d = todayStr(); DATA.said = DATA.said || {}; (DATA.said[d] = DATA.said[d] || []).push(text); save(); }
 
-/* 推荐英文动画 / 课外兴趣（抖音公开视频，不含个人信息），家长页一键导入，已有的不重复 */
-const RECOMMENDED = [{"name": "精卫填海（英文）", "url": "https://v.douyin.com/cw6weK3W6To/", "cat": "en"}, {"name": "火海中的小小英雄", "url": "https://v.douyin.com/QB3RDNA1pIw/", "cat": "en"}, {"name": "大胖橘（双语）", "url": "https://v.douyin.com/g86_KA_bTjY/", "cat": "en"}, {"name": "狼妈妈 Mama Wolf", "url": "https://v.douyin.com/04QXShXEyJc/", "cat": "en"}, {"name": "小狐狸皮普·奥尔良鸡翅", "url": "https://v.douyin.com/Oo_7a_a4Pf4/", "cat": "en"}, {"name": "失控巨型南瓜", "url": "https://v.douyin.com/vvB0ztJ_DyU/", "cat": "en"}, {"name": "小毛毛虫把月亮吃掉了", "url": "https://v.douyin.com/fP-MakwyX9A/", "cat": "en"}, {"name": "胡桃夹子与鼠王（较难）", "url": "https://v.douyin.com/e-K1LcbGxzU/", "cat": "en"}, {"name": "睿哥双语·鸭子", "url": "https://v.douyin.com/396beleDdnk/", "cat": "en"}, {"name": "雪地里的小画家（简单）", "url": "https://v.douyin.com/_gGTu8OIIoU/", "cat": "en"}, {"name": "My little boat can sail（简单）", "url": "https://v.douyin.com/rgi-5brY5MU/", "cat": "en"}, {"name": "物理启蒙动画", "url": "https://v.douyin.com/X45BXd4FbEo/", "cat": "fun"}, {"name": "元朝历史故事", "url": "https://v.douyin.com/bVXZyM8R0F4/", "cat": "fun"}, {"name": "数学·蜗牛爬井", "url": "https://v.douyin.com/HYffPrt4AqU/", "cat": "fun"}, {"name": "好听的英文歌", "url": "https://v.douyin.com/l30X9shnP0w/", "cat": "fun"}];
+/* 推荐素材（抖音公开视频，不含个人信息），家长页一键导入，已有的不重复 */
+const RECOMMENDED = [{"name": "西游记（全英文合集）", "url": "https://v.douyin.com/-hBzuN4_U5U/", "cat": "en"}, {"name": "精卫填海（英文）", "url": "https://v.douyin.com/cw6weK3W6To/", "cat": "en"}, {"name": "火海中的小小英雄", "url": "https://v.douyin.com/QB3RDNA1pIw/", "cat": "en"}, {"name": "倒霉的一天（英文对白）", "url": "https://v.douyin.com/9n0q3TCx7UA/", "cat": "en"}, {"name": "英语情景对话·指路", "url": "https://v.douyin.com/37rqYELFYyk/", "cat": "en"}, {"name": "大胖橘（双语）", "url": "https://v.douyin.com/g86_KA_bTjY/", "cat": "en"}, {"name": "狼妈妈 Mama Wolf", "url": "https://v.douyin.com/04QXShXEyJc/", "cat": "en"}, {"name": "小狐狸皮普·奥尔良鸡翅", "url": "https://v.douyin.com/Oo_7a_a4Pf4/", "cat": "en"}, {"name": "失控巨型南瓜", "url": "https://v.douyin.com/vvB0ztJ_DyU/", "cat": "en"}, {"name": "小毛毛虫把月亮吃掉了", "url": "https://v.douyin.com/fP-MakwyX9A/", "cat": "en"}, {"name": "胡桃夹子与鼠王（较难）", "url": "https://v.douyin.com/e-K1LcbGxzU/", "cat": "en"}, {"name": "睿哥双语·鸭子", "url": "https://v.douyin.com/396beleDdnk/", "cat": "en"}, {"name": "雪地里的小画家（简单）", "url": "https://v.douyin.com/_gGTu8OIIoU/", "cat": "en"}, {"name": "My little boat can sail（简单）", "url": "https://v.douyin.com/rgi-5brY5MU/", "cat": "en"}, {"name": "每天一篇高分作文", "url": "https://v.douyin.com/SMBuUWrxyaI/", "cat": "cn"}, {"name": "古文奇遇·滕王阁序（较难）", "url": "https://v.douyin.com/HmnArL4YfzE/", "cat": "cn"}, {"name": "大唐 289 年（睡前听）", "url": "https://v.douyin.com/CaHQlrVfQUk/", "cat": "his"}, {"name": "学点历史·五代十国", "url": "https://v.douyin.com/ImdSTrsRZp4/", "cat": "his"}, {"name": "元朝历史故事", "url": "https://v.douyin.com/bVXZyM8R0F4/", "cat": "his"}, {"name": "初中物理·一集一个知识点", "url": "https://v.douyin.com/0m9dZI6VzPo/", "cat": "sci"}, {"name": "物理启蒙动画", "url": "https://v.douyin.com/X45BXd4FbEo/", "cat": "sci"}, {"name": "数学·蜗牛爬井", "url": "https://v.douyin.com/HYffPrt4AqU/", "cat": "sci"}, {"name": "好听的英文歌", "url": "https://v.douyin.com/l30X9shnP0w/", "cat": "fun"}];
 LOCAL['POST /api/listen/recommended'] = b => {
   if (String(b.pin) !== String(pin())) return {error: '家长密码不对'};
   const have = new Set(listenLinks().map(l => l.url)); let n = 0;
@@ -598,7 +632,7 @@ async function syncSchedule() {
     const plain = await crypto.subtle.decrypt({name: 'AES-GCM', iv: buf.slice(0, 12)}, key, buf.slice(12));
     const o = JSON.parse(new TextDecoder().decode(plain));
     if (!o.sched || (CFG.synced && o.synced <= CFG.synced)) return false;
-    CFG.sched = o.sched; CFG.synced = o.synced; if (o.vac) CFG.vac = o.vac;
+    CFG.sched = o.sched; CFG.synced = o.synced; if (o.vac) CFG.vac = o.vac; if (o.start) CFG.start_date = o.start;
     lsSet(LS_CFG, CFG); return true;
   } catch (e) { return false; }
 }
@@ -648,7 +682,7 @@ function go(v) {
   render(); scrollTo(0, 0);
 }
 $$('nav button').forEach(b => b.onclick = () => { if (b.dataset.v === 'wenyan') state.wy = null; if (b.dataset.v === 'words') state.cardDay = null; if (b.dataset.v === 'today') state.date = todayIso(); go(b.dataset.v); });
-async function render() { await ({today, words, wenyan, rewards, parent, dict: dictView})[state.view](); }
+async function render() { await ({today, words, wenyan, rewards, parent, media, dict: dictView})[state.view](); }
 
 /* 家长密码弹层 */
 function askPin(title, onOk) {
@@ -684,7 +718,8 @@ function weekText(w, date) {
   return '周一到周五，每天必做全完成，周末多玩 1 小时';
 }
 
-/* ---------- 今天 ---------- */
+/* ---------- 今天：一张总览卡 + 按时段的任务清单；点任务进对应的学习页 ---------- */
+const GO_TASK = {listen: 'media', word: 'card', ket: 'ket', wenyan: 'wenyan', dict: 'dict'};
 async function today() {
   const d = await api('/api/today?date=' + state.date);
   const r = rewardsState(d.date);
@@ -694,64 +729,48 @@ async function today() {
   const h = new Date().getHours();
   const hello = !isToday ? '补打卡' : h < 11 ? '早上好 ☀️' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好 🌙';
   const groups = [['早上', t => t.time < '12:00'], ['下午', t => t.time >= '12:00' && t.time < '18:00'], ['晚上', t => t.time >= '18:00']];
-  const dl = r.daily;
+  const nowG = !isToday ? -1 : h < 12 ? 0 : h < 18 ? 1 : 2;
+  const dl = r.daily, w = r.weekly, c = d.card;
   let x = `<div class="row between" style="margin-top:6px">
       <div><div class="sub">${hello}</div><h1>${md(d.date)} ${WD[d.weekday]}</h1>${holidayName(d.date) ? `<span class="tag" style="background:var(--warn-soft);color:var(--warn)">${esc(holidayName(d.date))}</span>` : ''}</div>
       <div class="row" style="gap:6px"><span class="chip" style="color:var(--gold)">⭐ ${d.stars}</span><span class="chip" style="color:var(--warn)">🔥 ${d.streak}</span></div></div>
     <div class="row" style="margin-top:8px;gap:8px"><button class="icon-btn" id="prev">‹</button>
       ${isToday ? '<span class="faint">点 ‹ 可以补前几天的打卡</span>' : '<button class="icon-btn" id="next">›</button><button class="btn soft sm" id="tod">回到今天</button>'}</div>
-
     ${backupDue() ? '<div class="warn" style="margin-top:12px">💾 超过 7 天没备份了，请家长到「家长」页点「导出备份」</div>' : ''}
     <div class="card"><div class="hero">${ring(cDone, cTotal)}
-      <div style="flex:1"><h2>${cDone === cTotal ? '必做全部完成！' : `必做还差 ${cTotal - cDone} 项`}</h2>
-      <div class="sub" style="margin-top:4px">${cDone === cTotal ? '今日奖励已解锁 🎉' : '做完必做就能选：零食 或 20 分钟游戏'}</div>
-      <div class="faint" style="margin-top:6px">全部任务 ${done}/${total}${done === total && total ? ' · 全做完额外 +3⭐' : ''}</div></div></div>
-      <div class="unlock ${dl.unlocked ? 'on' : ''}"><span class="ic">${dl.claimed ? '✅' : dl.unlocked ? '🎮' : '🔒'}</span>
-        <div style="flex:1"><b>今日奖励：零食 或 20 分钟游戏</b><small>${dl.claimed ? '今天已兑现：' + esc(dl.claimed.note.replace('每日奖励：', '')) : dl.unlocked ? (isToday ? '已解锁！二选一，找家长兑现' : '这天已完成') : `必做还差 ${dl.remaining} 项`}</small></div>
-        ${dl.unlocked && !dl.claimed && isToday ? '<button class="btn sm" id="claimDaily" style="background:#fff;color:var(--pri)">去选</button>' : ''}</div></div>
+      <div style="flex:1;min-width:0"><h2>${cDone === cTotal ? '必做全部完成！' : `必做还差 ${cTotal - cDone} 项`}</h2>
+      <div class="sub" style="margin-top:2px">${dl.claimed ? '今日奖励已兑现 ✅' : dl.unlocked ? (isToday ? '🎮 已解锁：零食 或 20 分钟游戏' : '这天已完成') : '做完必做：零食 或 20 分钟游戏'}</div>
+      <div class="faint" style="margin-top:2px">全部任务 ${done}/${total}${done === total && total ? ' · 额外 +3⭐' : ''}</div>
+      ${dl.unlocked && !dl.claimed && isToday ? '<button class="btn sm" id="claimDaily" style="margin-top:8px">去选奖励</button>' : ''}</div></div>
+      <div class="wk" id="openWeek">${w.days.map(z => `<i class="${z.state}">${z.state === 'full' ? '✓' : z.label}</i>`).join('')}
+        <span>${w.claimed ? '周末 1 小时已兑现' : w.unlocked ? '周末 1 小时已解锁 🎉' : w.broken ? '本周断了，下周一再来' : '周一到五全完成 → 周末 1 小时'}</span></div></div>`;
 
-    <div class="card"><div class="row between"><h2>🏆 本周挑战</h2><span class="tag">周末 1 小时</span></div>
-      ${weekDots(r.weekly)}<div class="sub" style="margin-top:10px">${weekText(r.weekly, d.date)}</div></div>`;
-
-  const c = d.card;
+  if (d.tasks.some(t => t.opt && t.type !== 'bonus')) x += `<div class="warn" style="margin-bottom:4px">📅 今晚有课：英语听力、数学计算、ABC 可以不做</div>`;
   const pend = d.reviews.filter(v => !v.done);
-  x += `<div class="sec-title">今天要学</div>`;
-  const lt = d.tasks.find(t => t.id === 'listen');
-  if (lt) {
-    const st = settings();
-    const tile = l => `<a class="tile" href="${esc(l.url)}" target="_blank" rel="noopener"><b>${l.cat === 'fun' ? '🌟' : '🎬'} ${esc(l.name)}</b><span>去看 ›</span></a>`;
-    const en = listenLinks().filter(l => l.cat !== 'fun'), fun = listenLinks().filter(l => l.cat === 'fun');
-    x += `<div class="card"><div class="row between"><h2>🎬 英文动画</h2><span class="faint">${en.length} 个</span></div>
-      ${en.length ? `<div class="tiles">${en.slice(0, 6).map(tile).join('')}</div>${en.length > 6 ? `<details><summary style="cursor:pointer;color:var(--pri);font-weight:700;font-size:14px;margin-top:12px">更多（${en.length - 6}）</summary><div class="tiles">${en.slice(6).map(tile).join('')}</div></details>` : ''}`
-        : '<div class="warn" style="margin-top:12px">请家长在「家长」页添加英文动画链接</div>'}</div>`;
-    if (fun.length) x += `<div class="card"><details><summary style="cursor:pointer"><h2 style="display:inline">🌟 课外兴趣</h2> <span class="faint">${fun.length} 个</span></summary><div class="tiles">${fun.map(tile).join('')}</div></details></div>`;
-    x += `<div class="card"><div class="mini"><div class="ic" style="background:var(--ok-soft)">🎧</div>
-      <div style="flex:1"><h2>听力 · 看完说一说</h2><div class="sub">${lt.done ? '今天已完成 ✓' : '从上面「英文动画」选一个看完，再说一说'}</div></div><span class="tag" style="background:var(--pri-soft);color:var(--pri)">必做</span></div>
-      ${retellBox()}
-      </div>`;
-  }
-  { const ks = ketSession(d.date);
-    if (ks.day && d.tasks.some(t => t.type === 'ket')) x += `<div class="card"><div class="mini"><div class="ic" style="background:var(--gold-soft)">🔁</div>
-      <div style="flex:1"><h2>KET 复习 Day ${ks.day}</h2><div class="sub">20 个老单词${ks.due.length ? ` + ${ks.due.length} 个生词` : ''}，认识就点 ✓</div></div>
-      ${ks.finished ? '<span class="tag" style="background:var(--ok-soft);color:var(--ok)">已完成</span>' : '<button class="btn sm" id="openket">去复习</button>'}</div></div>`; }
-  if (c.day) x += `<div class="card"><div class="mini"><div class="ic" style="background:var(--pri-soft)">🔤</div>
-      <div style="flex:1"><h2>单词 Day ${c.day}</h2><div class="sub">${esc(c.topics)}</div></div>
-      ${c.learned_today ? '<span class="tag" style="background:var(--ok-soft);color:var(--ok)">已背完</span>' : '<button class="btn sm" id="opencard">去背</button>'}</div>
-      ${c.learned_today ? '' : `<div class="faint" style="margin-top:8px">先跟读，再用"遮中文"自测，对 ${PASS} 个就自动背完（现在最好 ${testBest(c.day)}/20）</div>`}
-      ${d.reviews.length ? `<div style="margin-top:14px"><div class="faint" style="margin-bottom:2px">要复习的卡：点开自测，对 ${PASS} 个自动完成</div>${d.reviews.map(v => `<span class="pill ${v.done ? 'on' : ''}" data-rv="${v.day}">${v.done ? '✓ ' : ''}Day ${v.day} · ${v.name}${!v.done && v.late > 0 ? ` <span style="color:var(--warn)">晚${v.late}天</span>` : ''}</span>`).join('')}</div>` : ''}</div>`;
-  if (d.wenyan.week) x += `<div class="card"><div class="mini"><div class="ic" style="background:var(--gold-soft)">📜</div>
-      <div style="flex:1"><h2>文言文</h2><div class="sub">${esc(d.wenyan.week.label)} · ${d.wenyan.week.start.slice(5).replace('-', '/')}–${d.wenyan.week.end.slice(5).replace('-', '/')}</div></div></div>
-      <div style="margin-top:8px">${d.wenyan.items.map(it => `<div class="task" data-openwy="${it.idx}"><span class="kai lbl" style="font-size:19px;text-decoration:none;color:var(--ink)">${esc(it.t)}</span><span class="faint">${it.checks.length}/5 ›</span></div>`).join('')}</div></div>`;
-
-  x += `<div class="sec-title">今日任务</div>`;
-  if (d.tasks.some(t => t.opt && t.type !== 'bonus')) x += `<div class="warn" style="margin-bottom:4px">📅 今晚有课：英语听力、数学计算、ABC 可以不做，做了照样加星星</div>`;
-  groups.forEach(([name, f]) => {
+  const sub = t => {
+    if (t.id === 'listen') return t.done ? '' : '选一个英文动画看，看完说一说';
+    if (t.type === 'word' && c.day) return c.learned_today ? `Day ${c.day} 已背完` : `Day ${c.day} · ${esc(c.topics)}`;
+    if (t.type === 'ket') { const ks = ketSession(d.date); return ks.day ? `Day ${ks.day}${ks.due.length ? ` + ${ks.due.length} 个生词` : ''}` : ''; }
+    if (t.id === 'wenyan' && d.wenyan.week) return d.wenyan.items.map(it => `《${esc(it.t)}》${it.checks.length}/5`).join(' ');
+    return '';
+  };
+  const row = t => {
+    const tag = coreIds.includes(t.id) ? '<span class="tag pri">必做</span>' : t.type === 'class' ? '<span class="tag cls">课</span>' : t.type === 'bonus' ? '<span class="tag ok">加分</span>' : '';
+    const label = t.id === 'listen' ? '听力：英文动画' : t.id === 'wenyan' && d.wenyan.week ? `文言文：${esc(d.wenyan.week.label)}` : esc(t.label);
+    const s = sub(t), goTo = GO_TASK[t.id] || GO_TASK[t.type];
+    return `<div class="task ${t.done ? 'done' : ''}" data-task="${t.id}" data-done="${t.done ? 0 : 1}" data-type="${t.type}" ${goTo && !t.done ? `data-go="${goTo}"` : ''}>
+      <span class="check" data-tick="1">${t.done ? '✓' : ''}</span>
+      <span class="lbl">${tag}${label}${t.opt && t.type !== 'bonus' ? ' <span class="faint">（可不做）</span>' : ''}${s ? `<small>${s}</small>` : ''}
+        ${t.type === 'word' && pend.length ? `<small style="color:var(--warn)">还要复习：${pend.map(v => `<span class="pill" data-rv="${v.day}">Day ${v.day} ${v.name}</span>`).join('')}</small>` : ''}</span>
+      <span class="tm">${t.time}${goTo && !t.done ? '<br><b style="color:var(--pri)">去做 ›</b>' : `<br><span class="pt">+${t.type === 'word' || t.type === 'ket' ? 2 : 1}⭐</span>`}</span></div>`;
+  };
+  groups.forEach(([name, f], gi) => {
     const ts = d.tasks.filter(f); if (!ts.length) return;
-    x += `<div class="card" style="padding:6px 18px"><div class="faint" style="padding:10px 0 2px">${name}</div>` + ts.map(t => `<div class="task ${t.done ? 'done' : ''}" data-task="${t.id}" data-done="${t.done ? 0 : 1}" data-type="${t.type}">
-        <span class="check">${t.done ? '✓' : ''}</span><span class="lbl">${coreIds.includes(t.id) ? '<span class="tag" style="background:var(--pri-soft);color:var(--pri);margin-right:6px">必做</span>' : t.type === 'class' ? '<span class="tag" style="background:var(--gold-soft);color:var(--warn);margin-right:6px">课</span>' : t.type === 'bonus' ? '<span class="tag" style="background:var(--ok-soft);color:var(--ok);margin-right:6px">加分</span>' : ''}${t.id === 'listen' ? '听力：英文动画（至少 1 集）' : t.id === 'wenyan' && d.wenyan.week ? `文言文：${esc(d.wenyan.week.label)}` : esc(t.label)}${t.type === 'word' && c.day ? ` <span class="faint">Day ${c.day}</span>` : ''}${t.opt && t.type !== 'bonus' ? ' <span class="faint">（今晚有课，可不做）</span>' : ''}</span>
-        <span style="text-align:right"><span class="tm">${t.time}</span><br><span class="pt">+${t.type === 'word' || t.type === 'ket' ? 2 : 1}⭐</span></span></div>`).join('') + `</div>`;
+    const n = ts.filter(t => t.done).length, all = n === ts.length;
+    const open = !all && (nowG < 0 || gi >= nowG || ts.some(t => !t.done && coreIds.includes(t.id)));
+    x += `<details class="card grp" ${open ? 'open' : ''}><summary><span>${name}</span><span class="faint">${all ? '✓ 全部完成' : `${n}/${ts.length}`}</span></summary>${ts.map(row).join('')}</details>`;
   });
-  x += `<button class="btn block" id="share" style="margin-top:6px">📤 把今天的情况发给家长</button>`;
+  x += `<div class="row" style="gap:10px;margin-top:6px"><button class="btn soft block" id="openMedia" style="flex:1">📺 素材库</button><button class="btn block" id="share" style="flex:1">📤 发给家长</button></div>`;
   app.innerHTML = x;
 
   $('#share').onclick = async () => {
@@ -759,6 +778,57 @@ async function today() {
     try { if (navigator.share) { await navigator.share({text}); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
     try { await navigator.clipboard.writeText(text); toast('已复制，去微信粘贴发给家长'); } catch (e) { toast('复制不了，请截图发给家长'); }
   };
+  $('#openMedia').onclick = () => { state.mcat = 'en'; go('media'); };
+  $('#openWeek').onclick = () => go('rewards');
+  $('#prev').onclick = () => { state.date = addDays(state.date, -1); render(); };
+  if ($('#next')) { $('#next').onclick = () => { state.date = addDays(state.date, 1); render(); }; $('#tod').onclick = () => { state.date = todayIso(); render(); }; }
+  if ($('#claimDaily')) $('#claimDaily').onclick = () => go('rewards');
+  const openTask = g => {
+    if (g === 'media') { state.mcat = 'en'; go('media'); }
+    else if (g === 'card') { state.cardDay = c.day; state.mode = 'all'; state.deck = 'pet'; go('words'); }
+    else if (g === 'ket') { state.deck = 'ket'; go('words'); }
+    else if (g === 'wenyan') { state.wy = d.wenyan.items.length === 1 ? d.wenyan.items[0].idx : null; go('wenyan'); }
+    else if (g === 'dict') { state.di = 0; go('dict'); }
+  };
+  $$('[data-rv]').forEach(el => el.onclick = e => { e.stopPropagation(); state.cardDay = +el.dataset.rv; state.mode = 'zh'; state.deck = 'pet'; go('words'); });
+  $$('[data-task]').forEach(el => el.onclick = async e => {
+    if (el.dataset.go && !e.target.closest('[data-tick]')) { openTask(el.dataset.go); return; }
+    toggleTask(el.dataset.task, el.dataset.done === '1', el.dataset.type);
+  });
+}
+async function toggleTask(task, on, type) {
+  const doIt = async pin => {
+    const before = rewardsState(state.date).daily.unlocked;
+    const res = await api('/api/task', {date: state.date, task, done: on, pin});
+    if (res.error === 'needdict') { state.view = 'dict'; state.di = 0; render(); scrollTo(0, 0); return res; }
+    if (res.error === 'needket') { toast('先把 KET 复习过一遍，完成后自动打勾'); state.deck = 'ket'; go('words'); return res; }
+    if (res.error === 'needtest') { toast(`先去自测，对 ${PASS} 个就自动打勾`); state.cardDay = res.day; state.mode = 'zh'; state.deck = 'pet'; go('words'); return res; }
+    if (res.error === 'needpin') { if (pin !== undefined) return {error: '家长密码不对'}; askPin('补打卡（3 天前的要家长确认）', p => doIt(p)); return {}; }
+    if (res.error) { if (pin === undefined) toast(res.error); return res; }
+    const after = rewardsState(state.date).daily.unlocked;
+    toast(on ? (!before && after ? '🎉 必做完成！解锁今日奖励' : type === 'word' ? '单词背完 +2⭐' : '完成 +1⭐') : '已取消');
+    render(); return res;
+  };
+  return doIt();
+}
+
+/* ---------- 素材库：按类别分；英语页带"看完说一说"和听力打卡 ---------- */
+async function media() {
+  const d = await api('/api/today?date=' + todayIso());
+  const lt = d.tasks.find(t => t.id === 'listen');
+  const cat = state.mcat || 'en', all = listenLinks(), list = all.filter(l => catOf(l) === cat);
+  const tile = l => `<a class="tile" href="${esc(l.url)}" target="_blank" rel="noopener"><b>${esc(l.name)}</b><span>去看 ›</span></a>`;
+  let x = `<div class="row" style="margin-top:6px;gap:8px"><button class="icon-btn" id="back">‹</button><div><div class="sub">看动画 · 听故事</div><h1 style="margin-top:0">素材库</h1></div></div>
+    <div class="seg" style="margin-top:12px;overflow-x:auto">${CATS.filter(([k]) => all.some(l => catOf(l) === k)).map(([k, ic, n]) => `<button data-mc="${k}" class="${k === cat ? 'on' : ''}" style="flex:none;padding:9px 12px">${ic} ${n}</button>`).join('')}</div>
+    <div class="card">${list.length ? `<div class="tiles" style="margin-top:0">${list.map(tile).join('')}</div>` : '<div class="sub">这一类还没有，请家长在「家长」页添加</div>'}
+      ${cat === 'en' ? '<div class="faint" style="margin-top:10px">听不懂没关系，看画面猜意思；看完在下面说一句</div>' : '<div class="faint" style="margin-top:10px">课外兴趣，不算任务，想看就看</div>'}</div>`;
+  if (cat === 'en' && lt) x += `<div class="card"><div class="mini"><div class="ic" style="background:var(--ok-soft)">🎧</div>
+      <div style="flex:1"><h2>听力 · 看完说一说</h2><div class="sub">${lt.done ? '今天已完成 ✓' : '看完一集，说一句，再打卡'}</div></div>
+      ${lt.done ? '<span class="tag ok">已完成</span>' : '<button class="btn sm" id="listenDone">看完了 ✓</button>'}</div>${retellBox()}</div>`;
+  app.innerHTML = x;
+  $('#back').onclick = () => go('today');
+  $$('[data-mc]').forEach(b => b.onclick = () => { state.mcat = b.dataset.mc; render(); });
+  if ($('#listenDone')) $('#listenDone').onclick = () => { state.date = todayIso(); toggleTask('listen', true, ''); };
   $$('[data-lv]').forEach(b => b.onclick = () => { retellLv = +b.dataset.lv; render(); });
   $$('[data-sayw]').forEach(b => b.onclick = () => sayEn(b.dataset.sayw));
   $$('[data-model]').forEach(b => b.onclick = () => speakQueue(MODELS[+b.dataset.model][1].map(([en]) => [en, 'en-GB', .8])));
@@ -778,29 +848,6 @@ async function today() {
   });
   if ($('#rGo')) $('#rGo').onclick = () => { const v = $('#rIn input').value.trim(); if (v && rTarget !== null) rFill(rTarget, v); };
   if ($('#rIn input')) autoSubmit($('#rIn input'), v => { if (rTarget !== null) rFill(rTarget, v); });
-  $('#prev').onclick = () => { state.date = addDays(state.date, -1); render(); };
-  if ($('#next')) { $('#next').onclick = () => { state.date = addDays(state.date, 1); render(); }; $('#tod').onclick = () => { state.date = todayIso(); render(); }; }
-  if ($('#claimDaily')) $('#claimDaily').onclick = () => go('rewards');
-  if ($('#openket')) $('#openket').onclick = () => { state.deck = 'ket'; go('words'); };
-  if ($('#opencard')) $('#opencard').onclick = () => { state.cardDay = c.day; state.mode = 'all'; state.deck = 'pet'; go('words'); };
-  $$('[data-openwy]').forEach(b => b.onclick = () => { state.wy = +b.dataset.openwy; go('wenyan'); });
-  $$('[data-rv]').forEach(el => el.onclick = () => { state.cardDay = +el.dataset.rv; state.mode = 'zh'; state.deck = 'pet'; go('words'); });
-  $$('[data-task]').forEach(el => el.onclick = async () => {
-    const on = el.dataset.done === '1', task = el.dataset.task;
-    const doIt = async pin => {
-      const before = rewardsState(state.date).daily.unlocked;
-      const res = await api('/api/task', {date: state.date, task, done: on, pin});
-      if (res.error === 'needdict') { state.view = 'dict'; state.di = 0; render(); scrollTo(0, 0); return res; }
-      if (res.error === 'needket') { toast('先把 KET 复习过一遍，完成后自动打勾'); state.deck = 'ket'; go('words'); return res; }
-      if (res.error === 'needtest') { toast(`先去自测，对 ${PASS} 个就自动打勾`); state.cardDay = res.day; state.mode = 'zh'; state.deck = 'pet'; go('words'); return res; }
-      if (res.error === 'needpin') { if (pin !== undefined) return {error: '家长密码不对'}; askPin('补打卡（3 天前的要家长确认）', p => doIt(p)); return {}; }
-      if (res.error) { if (pin === undefined) toast(res.error); return res; }
-      const after = rewardsState(state.date).daily.unlocked;
-      toast(on ? (!before && after ? '🎉 必做完成！解锁今日奖励' : el.dataset.type === 'word' ? '单词背完 +2⭐' : '完成 +1⭐') : '已取消');
-      render(); return res;
-    };
-    doIt();
-  });
 }
 /* 复述：三个难度 + 词语提示板（点词听发音）；说一句就算完成，可以中英夹杂 */
 const RETELL = [
@@ -1158,13 +1205,13 @@ async function parent() {
     <div class="sec-title">设置</div>
     <div class="card"><h2>🎁 成长大奖的奖品</h2><div class="sub" style="margin:4px 0 10px">现在：${esc(bigName())}</div>
       <input id="bn" placeholder="例如：去一次蹦床馆 / 一盒巧克力"><button class="btn sm" id="bnSave" style="margin-top:10px">保存</button></div>
-    <div class="card"><h2>🎬 英文动画 / 课外兴趣链接</h2>
-      ${listenLinks().map((l, k) => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--line)"><span>${l.cat === 'fun' ? '🌟' : '📺'} ${esc(l.name)}</span><button class="btn soft sm" data-ldel="${k}">删除</button></div>`).join('') || '<div class="sub" style="margin-top:4px">还没有</div>'}
+    <div class="card"><h2>📺 素材库链接</h2>
+      ${listenLinks().map((l, k) => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--line)"><span>${CATS.find(c => c[0] === catOf(l))[1]} ${esc(l.name)}</span><button class="btn soft sm" data-ldel="${k}">删除</button></div>`).join('') || '<div class="sub" style="margin-top:4px">还没有</div>'}
       <div class="faint" style="margin:12px 0 8px">抖音打开合集 → 分享 → 复制链接，整段粘贴到下面，再起个名字</div>
       <textarea id="lu" rows="3" style="font-size:13px" placeholder="粘贴抖音分享内容"></textarea>
-      <div class="row" style="margin-top:8px"><input id="ln" placeholder="名字，如：西游英语"><select id="lc" style="font:inherit;padding:10px;border-radius:13px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)"><option value="en">英文动画</option><option value="fun">课外兴趣</option></select></div>
+      <div class="row" style="margin-top:8px"><input id="ln" placeholder="名字，如：西游记英文版"><select id="lc" style="font:inherit;padding:10px;border-radius:13px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink)">${CATS.map(([k, , n]) => `<option value="${k}">${n}</option>`).join('')}</select></div>
       <button class="btn sm" id="luSave" style="margin-top:10px">添加</button></div>
-    <div class="card"><h2>⭐ 一键导入推荐动画</h2><div class="sub" style="margin:4px 0 10px">英文动画 ${RECOMMENDED.filter(l => l.cat !== 'fun').length} 个 + 课外兴趣 ${RECOMMENDED.filter(l => l.cat === 'fun').length} 个，已有的不会重复</div>
+    <div class="card"><h2>⭐ 一键导入推荐素材</h2><div class="sub" style="margin:4px 0 10px">${CATS.map(([k, , n]) => n + ' ' + RECOMMENDED.filter(l => l.cat === k).length).join(' · ')}，已有的不会重复</div>
       <button class="btn sm" id="recGo">一键导入</button></div>
     <div class="card"><h2>📦 导入设置 / 链接包</h2><div class="sub" style="margin:4px 0 10px">更新任务表、批量加链接时，把 Claude 给的那条长链接粘贴到这里</div>
       <textarea id="pk" rows="3" style="font-size:12px" placeholder="粘贴 https://…#setup=… 整条"></textarea>
@@ -1178,8 +1225,8 @@ async function parent() {
       <button class="btn soft sm" id="impt" style="margin-top:8px">用粘贴的文字恢复</button>
       <div class="faint" style="margin-top:8px">上次备份：${DATA.lastBackup ? DATA.lastBackup.slice(5).replace('-', '/') : '还没有'}${backupDue() ? ' <b style="color:var(--warn)">· 该备份了</b>' : ''}　上次保存：${DATA.savedAt ? esc(new Date(DATA.savedAt).toLocaleString('zh-CN', {hour12: false}).slice(0, -3)) : '还没有'}</div></div>`;
   app.innerHTML = x;
-  $('#luSave').onclick = () => { const u = $('#lu').value, n = $('#ln').value; if (!u.trim() || (!n.trim() && !/#setup=/.test(u))) { toast('链接和名字都要填'); return; } askPin('添加英文故事', async p => { const r = await api('/api/listen', {pin: p, url: u, name: n, cat: $('#lc').value}); if (!r.error) { toast(r.imported ? '链接包导入成功' : '已添加'); render(); } return r; }); };
-  $('#recGo').onclick = () => askPin('导入推荐动画', async p => { const r = await api('/api/listen/recommended', {pin: p}); if (!r.error) { toast(r.added ? `已导入 ${r.added} 个` : '都已经有了'); render(); } return r; });
+  $('#luSave').onclick = () => { const u = $('#lu').value, n = $('#ln').value; if (!u.trim() || (!n.trim() && !/#setup=/.test(u))) { toast('链接和名字都要填'); return; } askPin('添加素材', async p => { const r = await api('/api/listen', {pin: p, url: u, name: n, cat: $('#lc').value}); if (!r.error) { toast(r.imported ? '链接包导入成功' : '已添加'); render(); } return r; }); };
+  $('#recGo').onclick = () => askPin('导入推荐素材', async p => { const r = await api('/api/listen/recommended', {pin: p}); if (!r.error) { toast(r.added ? `已导入 ${r.added} 个` : '都已经有了'); render(); } return r; });
   $('#pkGo').onclick = () => { const v = $('#pk').value; if (!v.trim()) { toast('请先粘贴'); return; } askPin('导入设置 / 链接包', async p => { if (String(p) !== String(pin())) return {error: '家长密码不对'}; if (!applySetupCode(v)) return {error: '内容不完整，请重新复制整条'}; toast('导入成功'); render(); return {ok: true}; }); };
   $$('[data-ldel]').forEach(b => b.onclick = () => askPin('删除这个链接', async p => { const r = await api('/api/listen/del', {pin: p, idx: b.dataset.ldel}); if (!r.error) { toast('已删除'); render(); } return r; }));
   $('#bnSave').onclick = () => { const v = $('#bn').value; if (!v.trim()) { toast('请先填写奖品'); return; } askPin('修改成长大奖', async p => { const r = await api('/api/settings', {pin: p, bigName: v}); if (!r.error) { toast('已保存'); render(); } return r; }); };
@@ -1213,7 +1260,7 @@ if (!CFG) {
   const h0 = location.hash.slice(1), mw = h0.match(/^wy(\d+)$/);
   if (mw) { state.wy = +mw[1]; go('wenyan'); }
   else if (/^words-(zh|en)$/.test(h0)) { state.mode = h0.slice(6); go('words'); }
-  else if (['today', 'words', 'wenyan', 'rewards', 'parent'].includes(h0)) go(h0); else render();
+  else if (['today', 'words', 'wenyan', 'rewards', 'parent', 'media'].includes(h0)) go(h0); else render();
 }
 let lastDay = todayIso();
 function dayCheck() {
