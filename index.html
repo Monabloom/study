@@ -290,6 +290,19 @@ function pack(ids, from, to, blocks) {
   while (q.length) {
     const nb = blocks.find(b => b.e > t), gapEnd = nb ? Math.min(nb.s, to) : to;
     if (nb && nb.s <= t) { t = nb.e + 10; run = 0; continue; }   // 正在上课
+    if (q[0] === 'homework') {   // 下课第一项先写校内作业；写到一半要上课就分两段，下课接着写
+      const parts = []; let remain = DUR.homework;
+      while (remain > 0) {
+        const b = blocks.find(b => b.e > t), ge = b ? Math.min(b.s, to) : to;
+        if (b && b.s <= t) { t = b.e + 10; continue; }
+        const use = Math.min(remain, ge - t);
+        if (use >= Math.min(15, remain)) { parts.push([t, t + use]); t += use; remain -= use; }
+        else if (!b || b.s >= to) return null; else t = b.e + 10;
+      }
+      q.shift(); out.push({id: 'homework', s: parts[0][0], e: t, parts}); run = 30;
+      if (q.length) { rests.push({s: t, d: 10}); t += 10; run = 0; }
+      continue;
+    }
     const k = q.findIndex(id => t + DUR[id] <= gapEnd);
     if (k < 0) { if (!nb || nb.s >= to) return null; t = nb.e + 10; run = 0; continue; }
     const id = q.splice(k, 1)[0], d = DUR[id];
@@ -319,7 +332,7 @@ function planFor(date) {
     return {id: 'c' + k, label, time: time || '', end: en === null ? '' : m2t(en), type: 'class', s: st, e: en};
   });
   const blocks = cls.filter(c => c.s !== null);
-  const mk = (id, a, b) => ({id, label: LABEL[id], time: m2t(a), end: m2t(b), dur: b - a, type: TYPE[id] || ''});
+  const mk = (id, a, b, parts) => ({id, label: LABEL[id], time: m2t(a), end: m2t(b), dur: parts ? parts.reduce((n, [x, y]) => n + y - x, 0) : b - a, type: TYPE[id] || '', parts: parts && parts.length > 1 ? parts.map(([x, y]) => m2t(x) + '–' + m2t(y)) : null});
   const tasks = [], rests = [];
   const ms = t2m(MORNING[kind]); tasks.push(mk('listen', ms, ms + DUR.listen));
   if (kind !== 'school') {
@@ -328,7 +341,7 @@ function planFor(date) {
     r.out.forEach(x => tasks.push(mk(x.id, x.s, x.e))); rests.push(...r.rests);
   }
   const r = packDrop(EVENING, t2m(EVE_FROM), t2m(BED_READ), blocks, DROP);
-  r.out.forEach(x => tasks.push(mk(x.id, x.s, x.e))); rests.push(...r.rests);
+  r.out.forEach(x => tasks.push(mk(x.id, x.s, x.e, x.parts))); rests.push(...r.rests);
   tasks.push(mk('bedread', t2m(BED_READ), t2m(BED)));
   return {tasks: tasks.concat(cls).sort((a, b) => (a.time || '99').localeCompare(b.time || '99')), rests: rests.map(x => ({time: m2t(x.s), dur: x.d}))};
 }
@@ -846,7 +859,7 @@ async function today() {
   const pend = d.reviews.filter(v => !v.done);
   const sub = t => {
     if (t.type === 'class') return t.end ? `${t.time}–${t.end}` : '';
-    const bits = [`${t.dur} 分钟`];
+    const bits = [t.parts ? `${t.dur} 分钟，分两段：${t.parts.join('，下课后 ')}` : `${t.dur} 分钟`];
     if (t.id === 'listen' && !t.done) bits.push('选一个英文动画');
     if (t.type === 'word' && c.day) bits.push(`Day ${c.day} · ${esc(c.topics)}`);
     if (t.type === 'ket') { const ks = ketSession(d.date); if (ks.day) bits.push(`Day ${ks.day}${ks.due.length ? ` + ${ks.due.length} 个生词` : ''}`); }
