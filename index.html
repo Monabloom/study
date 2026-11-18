@@ -531,7 +531,7 @@ function listenLinks() {
   if (!st.recSeeded && typeof RECOMMENDED !== 'undefined') {   // 新设备第一次自动带上推荐素材；删光后不会再自动加
     const have = new Set(st.listenLinks.map(l => l.url));
     RECOMMENDED.forEach(l => { if (!have.has(l.url)) st.listenLinks.push({...l}); });
-    st.recSeeded = true; st.recVer = 2; save();
+    st.recSeeded = true; st.recVer = 3; save();
   }
   if ((st.recVer || 0) < 2) {   // 11/18：旧西游英语（有中文讲解）换成全英文合集；按新类别归类；补上新素材
     const rec = new Map(RECOMMENDED.map(l => [l.url, l]));
@@ -542,6 +542,11 @@ function listenLinks() {
     const xy = st.listenLinks.findIndex(l => /西游/.test(l.name));
     if (xy > 0) st.listenLinks.unshift(...st.listenLinks.splice(xy, 1));   // 西游记放第一个
     st.recVer = 2; save();
+  }
+  if (st.recVer < 3) {   // 11/18 家长决定加上文言字词
+    const u = 'https://v.douyin.com/RYEbpMwMLdI/';
+    if (!st.listenLinks.some(l => l.url === u)) st.listenLinks.push({...RECOMMENDED.find(l => l.url === u)});
+    st.recVer = 3; save();
   }
   const bad = l => /#setup=|monabloom\.github\.io|127\.0\.0\.1/.test(l.url);
   if (st.listenLinks.some(bad)) { st.listenLinks = st.listenLinks.filter(l => !bad(l)); save(); }
@@ -579,7 +584,7 @@ function daySummary(date) {
 function noteSaid(text) { const d = todayStr(); DATA.said = DATA.said || {}; (DATA.said[d] = DATA.said[d] || []).push(text); save(); }
 
 /* 推荐素材（抖音公开视频，不含个人信息），家长页一键导入，已有的不重复 */
-const RECOMMENDED = [{"name": "西游记（全英文合集）", "url": "https://v.douyin.com/-hBzuN4_U5U/", "cat": "en"}, {"name": "精卫填海（英文）", "url": "https://v.douyin.com/cw6weK3W6To/", "cat": "en"}, {"name": "火海中的小小英雄", "url": "https://v.douyin.com/QB3RDNA1pIw/", "cat": "en"}, {"name": "倒霉的一天（英文对白）", "url": "https://v.douyin.com/9n0q3TCx7UA/", "cat": "en"}, {"name": "英语情景对话·指路", "url": "https://v.douyin.com/37rqYELFYyk/", "cat": "en"}, {"name": "大胖橘（双语）", "url": "https://v.douyin.com/g86_KA_bTjY/", "cat": "en"}, {"name": "狼妈妈 Mama Wolf", "url": "https://v.douyin.com/04QXShXEyJc/", "cat": "en"}, {"name": "小狐狸皮普·奥尔良鸡翅", "url": "https://v.douyin.com/Oo_7a_a4Pf4/", "cat": "en"}, {"name": "失控巨型南瓜", "url": "https://v.douyin.com/vvB0ztJ_DyU/", "cat": "en"}, {"name": "小毛毛虫把月亮吃掉了", "url": "https://v.douyin.com/fP-MakwyX9A/", "cat": "en"}, {"name": "胡桃夹子与鼠王（较难）", "url": "https://v.douyin.com/e-K1LcbGxzU/", "cat": "en"}, {"name": "睿哥双语·鸭子", "url": "https://v.douyin.com/396beleDdnk/", "cat": "en"}, {"name": "雪地里的小画家（简单）", "url": "https://v.douyin.com/_gGTu8OIIoU/", "cat": "en"}, {"name": "My little boat can sail（简单）", "url": "https://v.douyin.com/rgi-5brY5MU/", "cat": "en"}, {"name": "每天一篇高分作文", "url": "https://v.douyin.com/SMBuUWrxyaI/", "cat": "cn"}, {"name": "古文奇遇·滕王阁序（较难）", "url": "https://v.douyin.com/HmnArL4YfzE/", "cat": "cn"}, {"name": "大唐 289 年（睡前听）", "url": "https://v.douyin.com/CaHQlrVfQUk/", "cat": "his"}, {"name": "学点历史·五代十国", "url": "https://v.douyin.com/ImdSTrsRZp4/", "cat": "his"}, {"name": "元朝历史故事", "url": "https://v.douyin.com/bVXZyM8R0F4/", "cat": "his"}, {"name": "初中物理·一集一个知识点", "url": "https://v.douyin.com/0m9dZI6VzPo/", "cat": "sci"}, {"name": "物理启蒙动画", "url": "https://v.douyin.com/X45BXd4FbEo/", "cat": "sci"}, {"name": "数学·蜗牛爬井", "url": "https://v.douyin.com/HYffPrt4AqU/", "cat": "sci"}, {"name": "好听的英文歌", "url": "https://v.douyin.com/l30X9shnP0w/", "cat": "fun"}];
+const RECOMMENDED = [{"name": "西游记（全英文合集）", "url": "https://v.douyin.com/-hBzuN4_U5U/", "cat": "en"}, {"name": "精卫填海（英文）", "url": "https://v.douyin.com/cw6weK3W6To/", "cat": "en"}, {"name": "火海中的小小英雄", "url": "https://v.douyin.com/QB3RDNA1pIw/", "cat": "en"}, {"name": "倒霉的一天（英文对白）", "url": "https://v.douyin.com/9n0q3TCx7UA/", "cat": "en"}, {"name": "英语情景对话·指路", "url": "https://v.douyin.com/37rqYELFYyk/", "cat": "en"}, {"name": "大胖橘（双语）", "url": "https://v.douyin.com/g86_KA_bTjY/", "cat": "en"}, {"name": "狼妈妈 Mama Wolf", "url": "https://v.douyin.com/04QXShXEyJc/", "cat": "en"}, {"name": "小狐狸皮普·奥尔良鸡翅", "url": "https://v.douyin.com/Oo_7a_a4Pf4/", "cat": "en"}, {"name": "失控巨型南瓜", "url": "https://v.douyin.com/vvB0ztJ_DyU/", "cat": "en"}, {"name": "小毛毛虫把月亮吃掉了", "url": "https://v.douyin.com/fP-MakwyX9A/", "cat": "en"}, {"name": "胡桃夹子与鼠王（较难）", "url": "https://v.douyin.com/e-K1LcbGxzU/", "cat": "en"}, {"name": "睿哥双语·鸭子", "url": "https://v.douyin.com/396beleDdnk/", "cat": "en"}, {"name": "雪地里的小画家（简单）", "url": "https://v.douyin.com/_gGTu8OIIoU/", "cat": "en"}, {"name": "My little boat can sail（简单）", "url": "https://v.douyin.com/rgi-5brY5MU/", "cat": "en"}, {"name": "每天一篇高分作文", "url": "https://v.douyin.com/SMBuUWrxyaI/", "cat": "cn"}, {"name": "古文奇遇·滕王阁序（较难）", "url": "https://v.douyin.com/HmnArL4YfzE/", "cat": "cn"}, {"name": "30 天文言字词（高中，较难）", "url": "https://v.douyin.com/RYEbpMwMLdI/", "cat": "cn"}, {"name": "大唐 289 年（睡前听）", "url": "https://v.douyin.com/CaHQlrVfQUk/", "cat": "his"}, {"name": "学点历史·五代十国", "url": "https://v.douyin.com/ImdSTrsRZp4/", "cat": "his"}, {"name": "元朝历史故事", "url": "https://v.douyin.com/bVXZyM8R0F4/", "cat": "his"}, {"name": "初中物理·一集一个知识点", "url": "https://v.douyin.com/0m9dZI6VzPo/", "cat": "sci"}, {"name": "物理启蒙动画", "url": "https://v.douyin.com/X45BXd4FbEo/", "cat": "sci"}, {"name": "数学·蜗牛爬井", "url": "https://v.douyin.com/HYffPrt4AqU/", "cat": "sci"}, {"name": "好听的英文歌", "url": "https://v.douyin.com/l30X9shnP0w/", "cat": "fun"}];
 LOCAL['POST /api/listen/recommended'] = b => {
   if (String(b.pin) !== String(pin())) return {error: '家长密码不对'};
   const have = new Set(listenLinks().map(l => l.url)); let n = 0;
