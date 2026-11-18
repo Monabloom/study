@@ -987,7 +987,7 @@ async function media() {
   const cat = state.mcat || 'en', all = listenLinks(), list = all.filter(l => catOf(l) === cat);
   const tile = l => `<a class="tile" href="${esc(l.url)}" target="_blank" rel="noopener"><b>${esc(l.name)}</b><span>去看 ›</span></a>`;
   let x = `<div class="row" style="margin-top:6px;gap:8px"><button class="icon-btn" id="back">‹</button><div><div class="sub">看动画 · 听故事</div><h1 style="margin-top:0">素材库</h1></div></div>
-    <div class="seg" style="margin-top:12px;overflow-x:auto">${CATS.filter(([k]) => all.some(l => catOf(l) === k)).map(([k, ic, n]) => `<button data-mc="${k}" class="${k === cat ? 'on' : ''}" style="flex:none;padding:9px 12px">${ic} ${n}</button>`).join('')}</div>
+    <div class="seg" style="margin-top:12px;overflow-x:auto" ${all.length ? '' : 'hidden'}>${CATS.filter(([k]) => all.some(l => catOf(l) === k)).map(([k, ic, n]) => `<button data-mc="${k}" class="${k === cat ? 'on' : ''}" style="flex:none;padding:9px 12px">${ic} ${n}</button>`).join('')}</div>
     <div class="card">${list.length ? `<div class="tiles" style="margin-top:0">${list.map(tile).join('')}</div>` : '<div class="sub">这一类还没有，请家长在「家长」页添加</div>'}
       ${cat === 'en' ? '<div class="faint" style="margin-top:10px">听不懂没关系，看画面猜意思；看完在下面说一句</div>' : ''}</div>`;
   if (cat === 'en' && lt) x += `<div class="card"><div class="mini"><div class="ic" style="background:var(--ok-soft)">🎧</div>
@@ -1303,7 +1303,7 @@ async function wenyanDetail(i) {
     <h1 class="kai wy-title">${esc(w.t)}</h1><div class="sub">${esc(w.g)} · ${esc(w.s)}</div>
     <div class="card"><div class="faint" style="margin-bottom:6px">背诵打卡</div>${w.stages.map((s, k) => `<span class="pill ${w.checks.includes(k) ? 'on' : ''}" data-st="${k}">${w.checks.includes(k) ? '✓ ' : ''}${s}</span>`).join('')}</div>
     <div class="card"><div class="row between"><h2>朗读</h2><span class="faint">机器朗读，仅供参考</span></div>
-      <div class="audio"><button class="btn sm" id="sayO">▶ 听原文</button><button class="btn sm" id="sayT">▶ 听译文</button><button class="btn sm" id="sayB">▶ 逐句对照听</button><button class="btn soft sm" id="sayStop">■ 停</button></div>
+      <div class="audio"><button class="btn sm" id="sayO">▶ 原文</button><button class="btn sm" id="sayT">▶ 译文</button><button class="btn sm" id="sayB">▶ 逐句对照</button><button class="btn soft sm" id="sayStop">■ 停</button></div>
       <div class="warn" style="margin-top:14px"><b>先认字：</b>${esc(w.hard)}</div>
       <div style="margin-top:8px">${read}</div></div>
     <div class="sec-title">逐句读懂</div>
@@ -1463,7 +1463,7 @@ async function parent() {
   const prog = (name, n, total, col) => `<div style="margin-top:12px"><div class="row between"><span>${name}</span><span class="faint">${n} / ${total}</span></div><div class="bar" style="margin-top:6px"><i style="width:${total ? Math.min(100, n / total * 100) : 0}%;${col ? 'background:' + col : ''}"></i></div></div>`;
   let x = `<div style="margin-top:6px"><div class="sub">只给家长看</div><h1>家长看板</h1></div>
     <div class="card"><div class="row between"><h2>今天</h2><span class="tag" style="${left.length ? 'background:var(--warn-soft);color:var(--warn)' : 'background:var(--ok-soft);color:var(--ok)'}">${tt.length - left.length} / ${tt.length}</span></div>
-      <div class="sub" style="margin-top:6px">${left.length ? '还没做：' + left.map(z => `${esc(z.label)}<span class="faint">（${z.time}）</span>`).join('、') : '全部完成 🎉'}</div>
+      <div class="sub" style="margin-top:6px">${left.length ? '还没做：' + left.map(z => `${esc(z.label)}${z.flex ? '' : `<span class="faint">（${z.time}）</span>`}`).join('、') : '全部完成 🎉'}</div>
       <div class="row" style="gap:16px;margin-top:12px;flex-wrap:wrap"><span>🔥 连续 <b>${s.streak}</b> 天</span><span>🏅 最长 <b>${bestStreak()}</b> 天</span><span>${L.ic} Lv${L.lv} ${L.name}</span></div></div>
     ${s.reviews_pending ? `<div class="warn">📌 有 ${s.reviews_pending} 张单词卡到了复习时间还没复习</div>` : ''}
     <div class="card"><h2>最近 7 天</h2>
@@ -1545,7 +1545,11 @@ function dayCheck() {
 syncSchedule().then(ch => { if (ch) { toast('课表已自动更新'); render(); } });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { syncSchedule().then(ch => { if (ch) { toast('课表已自动更新'); render(); } }); dayCheck(); if (CFG && state.view === 'today' && !document.querySelector('.sheet-bg')) render(); } });
 setInterval(dayCheck, 60000);
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  const t0 = Date.now(), hadCtl = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadCtl && Date.now() - t0 < 15000 && !sessionStorage.getItem('swReloaded')) { sessionStorage.setItem('swReloaded', '1'); location.reload(); } });   // 程序更新后第一次打开就换成新版
+  navigator.serviceWorker.register('sw.js').then(r => r.update()).catch(() => {});
+}
 </script>
 </body>
 </html>
