@@ -71,6 +71,9 @@ h2{font-size:17px;margin:0;font-weight:700;letter-spacing:-.01em}
 .tile{background:var(--bg);border-radius:16px;padding:14px;text-decoration:none;color:var(--ink);display:flex;flex-direction:column;justify-content:space-between;gap:8px;min-height:88px}
 .tile b{font-size:15px;line-height:1.35}
 .tile span{font-size:12px;color:var(--pri);font-weight:700}
+.tile small{font-size:12px;margin-top:-4px}
+.tile.cur{background:var(--pri-soft);box-shadow:inset 0 0 0 2px var(--pri)}
+a.tile{cursor:pointer}
 .sheet .row .btn.block{flex:1;width:auto}
 /* tasks */
 .task{display:flex;align-items:center;gap:14px;padding:13px 2px;cursor:pointer;user-select:none}
@@ -113,13 +116,13 @@ nav button.on{color:var(--pri)}
 .grid button.r3{background:var(--ok);color:#fff;font-weight:700}
 .grid button.cur{outline:2px solid var(--pri)}
 /* wenyan */
-.kai{font-family:"Kaiti SC","STKaiti","楷体",KaiTi,serif}
-.wy-title{font-size:34px;color:var(--pri);margin:6px 0 0}
+.kai{font-family:inherit;letter-spacing:.03em}
+.wy-title{font-size:30px;color:var(--pri);margin:10px 0 2px;font-weight:800}
 .wy-read{font-size:22px;line-height:2.05;text-indent:2em;margin:4px 0}
 .wy-read .p{color:var(--faint);font-size:14px;margin:0 3px}
 .line{padding:12px 0}
 .line+.line{border-top:1px solid var(--line)}
-.line .o{font-size:18px}
+.line .o{font-size:17px;font-weight:700}
 .line .t{margin-top:4px;font-size:15px}
 .line .k{margin-top:4px;color:var(--sub);font-size:13px}
 .audio{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
@@ -1104,13 +1107,13 @@ async function wenyan() {
   const wk = d.week;
   let x = `<div style="margin-top:6px"><div class="sub">小学 14 篇 · 背会 ${d.items.filter(i => i.checks.includes(2)).length} 篇</div><h1>文言文</h1></div>`;
   if (wk) x += `<div class="card" style="background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff"><div style="opacity:.85;font-size:13px">本周 ${wk.start.slice(5).replace('-', '/')}–${wk.end.slice(5).replace('-', '/')}</div><h2 style="margin-top:4px">${esc(wk.label)}</h2></div>`;
-  x += `<div class="card" style="padding:4px 18px">` + d.items.map(it => {
+  x += `<div class="card"><div class="tiles" style="margin-top:0">` + d.items.map(it => {
     const cur = wk && wk.idxs.includes(it.idx), ok = it.checks.includes(2);
     const blk = d.schedule.find(s => s.idxs.includes(it.idx));
-    return `<div class="task" data-wy="${it.idx}"><span class="check" style="${ok ? 'background:var(--ok);border-color:var(--ok)' : ''}">${ok ? '✓' : ''}</span>
-      <span class="lbl" style="text-decoration:none;color:var(--ink)"><span class="kai" style="font-size:19px">${esc(it.t)}</span> ${cur ? '<span class="tag" style="background:var(--pri-soft);color:var(--pri)">本周</span>' : ''}
-      <br><span class="faint">${it.g} · ${blk ? blk.start.slice(5).replace('-', '/') + ' 起' : ''} · ${it.checks.length}/5</span></span><span class="faint">›</span></div>`;
-  }).join('') + `</div>`;
+    return `<a class="tile ${cur ? 'cur' : ''}" data-wy="${it.idx}"><b>${esc(it.t)}</b>
+      <small class="faint">${it.g}${blk ? ' · ' + blk.start.slice(5).replace('-', '/') + ' 起' : ''}</small>
+      <span>${ok ? '<em style="color:var(--ok);font-style:normal">✓ 已背会</em>' : cur ? '本周 · 去背 ›' : it.checks.length ? `${it.checks.length}/5 · 去看 ›` : '去看 ›'}</span></a>`;
+  }).join('') + `</div></div>`;
   app.innerHTML = x;
   $$('[data-wy]').forEach(el => el.onclick = () => { state.wy = +el.dataset.wy; render(); scrollTo(0, 0); });
 }
