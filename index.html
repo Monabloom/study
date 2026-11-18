@@ -263,13 +263,16 @@ const isoWeekday = s => { const w = new Date(s + 'T00:00').getDay(); return w ==
 const diffDays = (a, b) => Math.round((new Date(a + 'T00:00') - new Date(b + 'T00:00')) / 864e5);
 
 /* 固定学习任务（不含任何课程信息），课程从课表同步进来；全部必做，按时长自动排时间表并留出休息 */
-const LABEL = {listen: '听力：英文动画', homework: '学校作业', word: 'PET 单词 20 个', ket: 'KET 复习 20 个', reading: '英语阅读 1 篇', listen2: '英语听力 1 篇',
-  math: '数学计算', wenyan: '文言文 1 篇', abc: 'ABC Reading 2 本', bedread: '睡前阅读', sport: '户外 / 篮球', ewrite: '英文小作文 3～5 句', dict: '拼写听写', goodsent: '好句积累：抄 2 句、仿写 1 句'};
+const LABEL = {ket: 'KET 复习 20 个', wenyan: '文言文 1 篇', homework: '学校作业', eng: '英语阅读 + 听力 + ABC Reading', word: '背单词 PET 20 个', math: '数学计算',
+  bedread: '阅读', sport: '户外 / 篮球', ewrite: '英文小作文 3～5 句', dict: '拼写听写', goodsent: '好句积累：抄 2 句、仿写 1 句'};
 const TYPE = {word: 'word', ket: 'ket', wenyan: 'wenyan', dict: 'dict'};
-const DUR = {listen: 15, homework: 45, word: 20, ket: 10, reading: 15, listen2: 10, math: 15, wenyan: 10, abc: 15, bedread: 20, sport: 60, ewrite: 15, dict: 10, goodsent: 15};   // 分钟，按四年级估
-const EVENING = ['homework', 'word', 'ket', 'reading', 'wenyan', 'listen2', 'math', 'abc'];   // 晚上按这个顺序排，睡前阅读固定最后
-const DROP = ['abc', 'math', 'listen2', 'wenyan', 'reading', 'ket'];   // 有晚课排不下时，从这里依次挪掉（当天不出现）
-const EVE_FROM = '18:30', BED_READ = '21:30', BED = '21:50';
+const DUR = {ket: 10, wenyan: 10, homework: 40, eng: 30, word: 20, math: 10, bedread: 20, sport: 60, ewrite: 15, dict: 10, goodsent: 15};   // 分钟（11/18 家长定）
+/* 晚上（家长定）：19:35 作业 → 英语 30 → 休 15 → 单词 20 + KET 10 → 休 10 → 数学/文言文隔天 10 → 21:50 阅读 → 22:10 睡；[任务, 做完后休息分钟] */
+const EVENING = [['homework', 0], ['eng', 15], ['word', 0], ['ket', 10], ['math', 0]];
+const DROP = ['math', 'wenyan', 'eng', 'ket'];   // 有课排不下时依次挪掉（当天不出现）
+const MORNING_TASKS = [];   // 早上不排（KET 跟背单词放一起）
+const rotSlot = date => ((diffDays(date, '2026-11-18') % 2) + 2) % 2 === 0 ? 'math' : 'wenyan';   // 数学、文言文隔天轮换（11/18 起数学先）
+const EVE_FROM = '19:35', BED_READ = '21:50', BED = '22:10';
 const MORNING = {school: '07:30', sat: '08:30', sun: '08:30', rest: '09:00'};
 const t2m = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 const m2t = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
@@ -315,6 +318,45 @@ function pack(ids, from, to, blocks) {
   }
   return {out, rests};
 }
+/* 晚上按固定顺序排：作业遇课可分两段；其他任务撞上课就排到下课后 10 分钟；休息只放在两项之间 */
+function seqEvening(seq, from, to, blocks) {
+  const out = [], rests = []; let t = from;
+  for (let n = 0; n < seq.length; n++) {
+    const [id, restAfter] = seq[n];
+    if (id === 'homework') {
+      const parts = []; let remain = DUR.homework;
+      while (remain > 0) {
+        const b = blocks.find(b => b.e > t), ge = b ? b.s : 9999;
+        if (b && b.s <= t) { t = b.e + 10; continue; }
+        const use = Math.min(remain, ge - t);
+        if (use >= Math.min(15, remain)) { parts.push([t, t + use]); t += use; remain -= use; } else t = b.e + 10;
+      }
+      out.push({id, s: parts[0][0], e: t, parts});
+    } else {
+      for (let b; (b = blocks.find(b => t < b.e && t + DUR[id] > b.s));) t = b.e + 10;
+      out.push({id, s: t, e: t + DUR[id]}); t += DUR[id];
+    }
+    if (restAfter && n < seq.length - 1) {
+      const nb = blocks.find(b => b.s >= t), r = Math.min(restAfter, (nb ? nb.s : 9999) - t);
+      if (r >= 5) rests.push({s: t, d: r});
+      t += restAfter;
+    }
+  }
+  return t <= to ? {out, rests} : null;
+}
+function seqDrop(seq, from, to, blocks) {
+  let cur = seq.slice(), r;
+  while (!(r = seqEvening(cur, from, to, blocks))) {
+    const k = DROP.find(x => cur.some(c => c[0] === x));
+    if (!k) return seqEvening(cur, from, 9999, blocks);   // 实在排不下就往后顺延
+    cur = cur.filter(c => c[0] !== k);
+  }
+  for (const c of seq) if (!cur.includes(c)) {   // 挪掉后有空档：放得下的再加回来
+    const tryCur = seq.filter(x => cur.includes(x) || x === c), r2 = seqEvening(tryCur, from, to, blocks);
+    if (r2) { cur = tryCur; r = r2; }
+  }
+  return r;
+}
 function packDrop(ids, from, to, blocks, drop) {
   let cur = ids.slice(), r;
   while (!(r = pack(cur, from, to, blocks))) {
@@ -334,13 +376,13 @@ function planFor(date) {
   const blocks = cls.filter(c => c.s !== null);
   const mk = (id, a, b, parts) => ({id, label: LABEL[id], time: m2t(a), end: m2t(b), dur: parts ? parts.reduce((n, [x, y]) => n + y - x, 0) : b - a, type: TYPE[id] || '', parts: parts && parts.length > 1 ? parts.map(([x, y]) => m2t(x) + '–' + m2t(y)) : null});
   const tasks = [], rests = [];
-  const ms = t2m(MORNING[kind]); tasks.push(mk('listen', ms, ms + DUR.listen));
+  let ms = t2m(MORNING[kind]); MORNING_TASKS.forEach(id => { tasks.push(mk(id, ms, ms + DUR[id])); ms += DUR[id]; });
   if (kind !== 'school') {
     const aft = kind === 'sun' ? ['sport', 'dict', 'goodsent'] : kind === 'sat' ? ['sport', 'ewrite'] : ['sport'];
     const r = packDrop(aft, t2m('15:00'), t2m('18:20'), blocks, []);
     r.out.forEach(x => tasks.push(mk(x.id, x.s, x.e))); rests.push(...r.rests);
   }
-  const r = packDrop(EVENING, t2m(EVE_FROM), t2m(BED_READ), blocks, DROP);
+  const r = seqDrop(EVENING.map(c => c[0] === 'math' ? [rotSlot(date), c[1]] : c), t2m(EVE_FROM), t2m(BED_READ), blocks);
   r.out.forEach(x => tasks.push(mk(x.id, x.s, x.e, x.parts))); rests.push(...r.rests);
   tasks.push(mk('bedread', t2m(BED_READ), t2m(BED)));
   return {tasks: tasks.concat(cls).sort((a, b) => (a.time || '99').localeCompare(b.time || '99')), rests: rests.map(x => ({time: m2t(x.s), dur: x.d}))};
@@ -829,7 +871,7 @@ function weekText(w, date) {
 }
 
 /* ---------- 今天：一张总览卡 + 按时段的时间表；全部必做，点任务进对应的学习页 ---------- */
-const GO_TASK = {listen: 'media', word: 'card', ket: 'ket', wenyan: 'wenyan', dict: 'dict'};
+const GO_TASK = {eng: 'media', listen: 'media', word: 'card', ket: 'ket', wenyan: 'wenyan', dict: 'dict'};
 async function today() {
   const d = await api('/api/today?date=' + state.date);
   const r = rewardsState(d.date);
@@ -860,7 +902,7 @@ async function today() {
   const sub = t => {
     if (t.type === 'class') return t.end ? `${t.time}–${t.end}` : '';
     const bits = [t.parts ? `${t.dur} 分钟，分两段：${t.parts.join('，下课后 ')}` : `${t.dur} 分钟`];
-    if (t.id === 'listen' && !t.done) bits.push('选一个英文动画');
+    if (t.id === 'eng' && !t.done) bits.push('听力看一集英文动画');
     if (t.type === 'word' && c.day) bits.push(`Day ${c.day} · ${esc(c.topics)}`);
     if (t.type === 'ket') { const ks = ketSession(d.date); if (ks.day) bits.push(`Day ${ks.day}${ks.due.length ? ` + ${ks.due.length} 个生词` : ''}`); }
     if (t.id === 'wenyan' && d.wenyan.week) bits.push(esc(d.wenyan.week.label));
@@ -938,7 +980,7 @@ async function toggleTask(task, on, type) {
 /* ---------- 素材库：按类别分；英语页带"看完说一说"和听力打卡 ---------- */
 async function media() {
   const d = await api('/api/today?date=' + todayIso());
-  const lt = d.tasks.find(t => t.id === 'listen');
+  const lt = d.tasks.find(t => t.id === 'eng');
   const cat = state.mcat || 'en', all = listenLinks(), list = all.filter(l => catOf(l) === cat);
   const tile = l => `<a class="tile" href="${esc(l.url)}" target="_blank" rel="noopener"><b>${esc(l.name)}</b><span>去看 ›</span></a>`;
   let x = `<div class="row" style="margin-top:6px;gap:8px"><button class="icon-btn" id="back">‹</button><div><div class="sub">看动画 · 听故事</div><h1 style="margin-top:0">素材库</h1></div></div>
@@ -946,12 +988,12 @@ async function media() {
     <div class="card">${list.length ? `<div class="tiles" style="margin-top:0">${list.map(tile).join('')}</div>` : '<div class="sub">这一类还没有，请家长在「家长」页添加</div>'}
       ${cat === 'en' ? '<div class="faint" style="margin-top:10px">听不懂没关系，看画面猜意思；看完在下面说一句</div>' : ''}</div>`;
   if (cat === 'en' && lt) x += `<div class="card"><div class="mini"><div class="ic" style="background:var(--ok-soft)">🎧</div>
-      <div style="flex:1"><h2>听力 · 看完说一说</h2><div class="sub">${lt.done ? '今天已完成 ✓' : '看完说一句，再打卡'}</div></div>
+      <div style="flex:1"><h2>英语听力 · 看完说一说</h2><div class="sub">${lt.done ? '今天已完成 ✓' : '看完说一句，再打卡'}</div></div>
       ${lt.done ? '<span class="tag ok">已完成</span>' : '<button class="btn sm" id="listenDone">看完了 ✓</button>'}</div>${retellBox()}</div>`;
   app.innerHTML = x;
   $('#back').onclick = () => go('today');
   $$('[data-mc]').forEach(b => b.onclick = () => { state.mcat = b.dataset.mc; render(); });
-  if ($('#listenDone')) $('#listenDone').onclick = () => { state.date = todayIso(); toggleTask('listen', true, ''); };
+  if ($('#listenDone')) $('#listenDone').onclick = () => { state.date = todayIso(); toggleTask('eng', true, ''); };
   $$('[data-lv]').forEach(b => b.onclick = () => { retellLv = +b.dataset.lv; render(); });
   $$('[data-sayw]').forEach(b => b.onclick = () => sayEn(b.dataset.sayw));
   $$('[data-model]').forEach(b => b.onclick = () => speakQueue(MODELS[+b.dataset.model][1].map(([en]) => [en, 'en-GB', .8])));
@@ -1291,7 +1333,6 @@ function bestStreak() {
 }
 function badgeList() {
   const days = Object.entries(DATA.taskDone), cnt = id => days.filter(([, m]) => m[id]).length;
-  const early = days.filter(([, m]) => m.listen && new Date(m.listen).getHours() < 8).length;
   const full = days.filter(([d]) => coreFull(d)).length, bs = bestStreak(), words = Object.keys(DATA.wordLearn).length;
   const wy = WENYAN.filter((w, i) => DATA.wenyan[i + ':2']).length, said = Object.values(DATA.said || {}).reduce((a, l) => a + l.length, 0);
   const wk = Object.keys(DATA.claims).some(k => k.startsWith('weekly:'));
@@ -1309,7 +1350,7 @@ function badgeList() {
     ['ket', '🔁', 'KET 回炉', 'KET 复习 20 天', ket >= 20, ket, 20],
     ['wy1', '📜', '小古文', '背会 1 篇文言文', wy >= 1, wy, 1],
     ['wy5', '🎎', '古文少侠', '背会 5 篇文言文', wy >= 5, wy, 5],
-    ['early', '🌅', '早起鸟', '早上 8 点前完成听力 5 次', early >= 5, early, 5],
+    ['eng', '🎧', '英语耳朵', '英语阅读 + 听力完成 10 天', cnt('eng') >= 10, cnt('eng'), 10],
     ['say', '🗣️', '开口王', '用英语说 20 句', said >= 20, said, 20],
     ['sport', '🏀', '运动健将', '户外 / 篮球 8 次', cnt('sport') >= 8, cnt('sport'), 8],
     ['read', '📖', '书虫', '睡前阅读 30 天', cnt('bedread') >= 30, cnt('bedread'), 30],
