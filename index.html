@@ -150,14 +150,48 @@ input,textarea{font:inherit;font-size:16px;padding:11px 13px;border-radius:13px;
 @keyframes up{from{transform:translateY(40px);opacity:0}}
 .toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 14px);transform:translateX(-50%) translateY(-10px);background:var(--ink);color:var(--card);padding:11px 18px;border-radius:14px;font-weight:700;font-size:14px;z-index:30;opacity:0;transition:.25s;pointer-events:none;white-space:nowrap}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.setbox>summary{list-style:none;cursor:pointer;padding:6px 0}
+.setbox>summary::-webkit-details-marker{display:none}
+.setbox:not([open])>summary:after{content:' ›'}
+.d7{display:flex;justify-content:space-between;margin-top:12px}
+.d7 div{text-align:center;font-size:12px;color:var(--faint);width:40px}
+.d7 i{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;margin-bottom:4px;font-style:normal;font-size:11px;font-weight:700;color:var(--sub);background:linear-gradient(to top,var(--pri-soft) calc(var(--p)*100%),var(--bg) 0)}
+.d7 i.full{background:var(--ok);color:#fff;font-size:15px}
+.d7 i.today{box-shadow:inset 0 0 0 2px var(--pri)}
+/* 激励 */
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:40}
+.confetti i{position:absolute;width:8px;height:12px;border-radius:2px;animation:pop 1.1s cubic-bezier(.2,.7,.4,1) forwards}
+@keyframes pop{0%{transform:translate(-50%,-50%) scale(.6);opacity:1}100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy) + 120px)) rotate(var(--r));opacity:0}}
+.floaty{position:fixed;z-index:41;transform:translate(-50%,-50%);font-weight:800;font-size:20px;color:var(--gold);pointer-events:none;animation:floatUp 1s ease-out forwards;text-shadow:0 1px 0 #fff}
+@keyframes floatUp{to{transform:translate(-50%,-160%);opacity:0}}
+.sheet-bg.center{align-items:center}
+.cele{background:var(--card);border-radius:28px;padding:28px 24px 22px;width:min(320px,86vw);text-align:center;animation:zoom .35s cubic-bezier(.2,1.4,.4,1)}
+.cele-ic{font-size:64px;line-height:1;margin-bottom:10px;animation:wob 1.2s ease-in-out infinite}
+.cele h2{font-size:22px}
+@keyframes zoom{from{transform:scale(.6);opacity:0}}
+@keyframes wob{50%{transform:scale(1.12) rotate(-6deg)}}
+.lvcard{background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;border-radius:var(--r);padding:20px;margin:14px 0;box-shadow:var(--shadow)}
+.lvcard .ic{font-size:46px;line-height:1;width:64px;height:64px;border-radius:20px;background:rgba(255,255,255,.18);display:grid;place-items:center;flex:none}
+.lvbar{height:10px;border-radius:99px;background:rgba(255,255,255,.25);overflow:hidden;margin-top:12px}
+.lvbar i{display:block;height:100%;background:#fff;border-radius:99px}
+.charge{position:relative;height:46px;border-radius:14px;background:var(--bg);overflow:hidden;margin-top:12px}
+.charge>i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#3cc7a0,var(--ok));border-radius:14px;transition:width .6s}
+.charge>b{position:absolute;inset:0;display:grid;place-items:center;font-size:15px;color:var(--ink)}
+.charge.full>b{color:#fff}
+.badges{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+.badge{text-align:center;font-size:11.5px;color:var(--sub);line-height:1.3}
+.badge .bi{width:56px;height:56px;margin:0 auto 6px;border-radius:18px;display:grid;place-items:center;font-size:28px;background:var(--gold-soft)}
+.badge.off .bi{background:var(--bg);filter:grayscale(1);opacity:.4}
+.badge.off{color:var(--faint)}
+.badge small{display:block;color:var(--faint);font-size:10.5px}
 /* today v2 */
 .wk{display:flex;align-items:center;gap:6px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);cursor:pointer}
-.wk i{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:800;border:2px solid var(--line);color:var(--faint);flex:none}
+.wk i{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:800;border:2px solid var(--line);color:var(--faint);flex:none}
 .wk i.full{background:var(--ok);border-color:var(--ok);color:#fff}
 .wk i.miss{background:var(--warn-soft);border-color:var(--warn-soft);color:var(--warn)}
 .wk i.today{border-color:var(--pri);color:var(--pri)}
 .wk i.skip{border-style:dashed}
-.wk span{font-size:13px;color:var(--sub);margin-left:4px;line-height:1.3}
+.wk span{font-size:12.5px;color:var(--sub);margin-left:2px;line-height:1.3;flex:1;min-width:0}
 .grp{padding:4px 18px}
 .grp summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 0 6px;cursor:pointer;font-weight:700;font-size:14px;color:var(--sub)}
 .grp summary::-webkit-details-marker{display:none}
@@ -166,8 +200,22 @@ input,textarea{font:inherit;font-size:16px;padding:11px 13px;border-radius:13px;
 .grp:not([open]) summary:after{transform:none}
 .grp summary span:first-child{flex:1}
 .task .lbl small{display:block;color:var(--faint);font-size:12.5px;margin-top:2px;line-height:1.4}
-.task .lbl small .pill{padding:3px 8px;font-size:12px;margin:3px 4px 0 0}
-.task .tm{text-align:right;flex:none}
+.task .lbl small .pill{padding:3px 9px;font-size:12px;margin:5px 4px 0 0;background:var(--warn-soft);color:var(--warn);font-weight:700}
+.grp .task{gap:12px;margin:0 -10px;padding:12px 10px;border-radius:14px}
+.grp .task+.task,.grp .rest+.task,.grp .task+.rest{border-top:0}
+.grp .task .tm{width:40px;flex:none;text-align:left;font-size:13px;color:var(--sub);font-variant-numeric:tabular-nums;font-weight:600}
+.grp .task.now{background:var(--pri-soft)}
+.grp .task.now .tm{color:var(--pri)}
+.grp .task.now .check{border-color:var(--pri)}
+.grp .task.cls .check{border-style:dashed}
+.grp .task .go{color:var(--faint);font-size:22px;line-height:1;flex:none}
+.grp .task.done{opacity:.75}
+.rest{display:flex;align-items:center;gap:12px;padding:4px 0;font-size:12.5px;color:var(--faint)}
+.rest .tm{width:40px;flex:none;font-variant-numeric:tabular-nums}
+.rest span:last-child{flex:1;border-top:1px dashed var(--line);padding-top:4px;margin-top:4px}
+.next{margin-top:8px;font-size:13px;color:var(--sub);cursor:pointer}
+.next b{color:var(--pri);font-weight:700}
+.link{border:0;background:none;padding:4px 0;font:inherit;font-size:13px;color:var(--faint);cursor:pointer}
 .tag.pri{background:var(--pri-soft);color:var(--pri);margin-right:6px}
 .tag.cls{background:var(--gold-soft);color:var(--warn);margin-right:6px}
 .tag.ok{background:var(--ok-soft);color:var(--ok);margin-right:6px}
@@ -214,13 +262,18 @@ const addDays = (s, n) => { const d = new Date(s + 'T00:00'); d.setDate(d.getDat
 const isoWeekday = s => { const w = new Date(s + 'T00:00').getDay(); return w === 0 ? 7 : w; };
 const diffDays = (a, b) => Math.round((new Date(a + 'T00:00') - new Date(b + 'T00:00')) / 864e5);
 
-/* 固定学习任务（不含任何课程信息），课程从课表同步进来 */
-const EVENING = [['homework', '学校作业', '18:30'], ['reading', '英语阅读 1 篇', '19:30'], ['listen2', '英语听力 1 篇', '19:45'], ['math', '数学计算 15 分钟', '20:00'],
-  ['word', 'PET 单词 20 个', '20:15', 'word'], ['ket', 'KET 复习 20 个', '20:35', 'ket'], ['wenyan', '文言文 1 篇', '20:50', 'wenyan'], ['abc', 'ABC Reading 2 本', '21:00'],
-  ['bedread', '阅读 20 分钟', '21:30']];
-const LIGHT = ['listen2', 'math', 'abc'];   // 有晚课的晚上这几项可以不做
+/* 固定学习任务（不含任何课程信息），课程从课表同步进来；全部必做，按时长自动排时间表并留出休息 */
+const LABEL = {listen: '听力：英文动画', homework: '学校作业', word: 'PET 单词 20 个', ket: 'KET 复习 20 个', reading: '英语阅读 1 篇', listen2: '英语听力 1 篇',
+  math: '数学计算', wenyan: '文言文 1 篇', abc: 'ABC Reading 2 本', bedread: '睡前阅读', sport: '户外 / 篮球', ewrite: '英文小作文 3～5 句', dict: '拼写听写', goodsent: '好句积累：抄 2 句、仿写 1 句'};
+const TYPE = {word: 'word', ket: 'ket', wenyan: 'wenyan', dict: 'dict'};
+const DUR = {listen: 15, homework: 45, word: 20, ket: 10, reading: 15, listen2: 10, math: 15, wenyan: 10, abc: 15, bedread: 20, sport: 60, ewrite: 15, dict: 10, goodsent: 15};   // 分钟，按四年级估
+const EVENING = ['homework', 'word', 'ket', 'reading', 'wenyan', 'listen2', 'math', 'abc'];   // 晚上按这个顺序排，睡前阅读固定最后
+const DROP = ['abc', 'math', 'listen2', 'wenyan', 'reading', 'ket'];   // 有晚课排不下时，从这里依次挪掉（当天不出现）
+const EVE_FROM = '18:30', BED_READ = '21:30', BED = '21:50';
 const MORNING = {school: '07:30', sat: '08:30', sun: '08:30', rest: '09:00'};
-const ROUTINE = Object.fromEntries(Object.entries(MORNING).map(([k, t]) => [k, [['listen', '听力：英文动画', t], ...EVENING]]));
+const t2m = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+const m2t = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+const classDur = l => /阿卡索/.test(l) ? 25 : /美术/.test(l) ? 90 : /高思|希望学/.test(l) ? 150 : 55;
 function dayKind(date) {
   const s = (CFG.sched || {})[date] || {}, wd = isoWeekday(date), vac = CFG.vac;
   if (s.h) return 'rest';
@@ -231,20 +284,57 @@ function dayKind(date) {
   return 'school';
 }
 function holidayName(date) { return ((CFG && CFG.sched || {})[date] || {}).h || ''; }
+/* 把任务依次排进 [from, to)，避开上课时间；课前空档先塞放得下的短任务；连续学满 30 分钟休息 10 分钟，下课后先歇 10 分钟 */
+function pack(ids, from, to, blocks) {
+  const out = [], rests = [], q = ids.slice(); let t = from, run = 0;
+  while (q.length) {
+    const nb = blocks.find(b => b.e > t), gapEnd = nb ? Math.min(nb.s, to) : to;
+    if (nb && nb.s <= t) { t = nb.e + 10; run = 0; continue; }   // 正在上课
+    const k = q.findIndex(id => t + DUR[id] <= gapEnd);
+    if (k < 0) { if (!nb || nb.s >= to) return null; t = nb.e + 10; run = 0; continue; }
+    const id = q.splice(k, 1)[0], d = DUR[id];
+    out.push({id, s: t, e: t + d}); t += d; run += d;
+    if (run >= 30 && q.length) {
+      const r = Math.min(10, (blocks.find(b => b.s >= t) || {s: 9999}).s - t);
+      if (r >= 5) rests.push({s: t, d: r});
+      t += 10; run = 0;
+    }
+  }
+  return {out, rests};
+}
+function packDrop(ids, from, to, blocks, drop) {
+  let cur = ids.slice(), r;
+  while (!(r = pack(cur, from, to, blocks))) {
+    const k = drop.find(x => cur.includes(x));
+    if (!k) return pack(cur, from, 24 * 60, blocks);   // 实在排不下就往后顺延
+    cur = cur.filter(x => x !== k);
+  }
+  return r;
+}
+function planFor(date) {
+  if (!CFG || !CFG.sched) return {tasks: [], rests: []};
+  const s = CFG.sched[date] || {}, kind = dayKind(date);
+  const cls = (s.c || []).map(([label, time, end], k) => {
+    const st = time ? t2m(time) : null, en = st === null ? null : end ? t2m(end) : st + classDur(label);
+    return {id: 'c' + k, label, time: time || '', end: en === null ? '' : m2t(en), type: 'class', s: st, e: en};
+  });
+  const blocks = cls.filter(c => c.s !== null);
+  const mk = (id, a, b) => ({id, label: LABEL[id], time: m2t(a), end: m2t(b), dur: b - a, type: TYPE[id] || ''});
+  const tasks = [], rests = [];
+  const ms = t2m(MORNING[kind]); tasks.push(mk('listen', ms, ms + DUR.listen));
+  if (kind !== 'school') {
+    const aft = kind === 'sun' ? ['sport', 'dict', 'goodsent'] : kind === 'sat' ? ['sport', 'ewrite'] : ['sport'];
+    const r = packDrop(aft, t2m('15:00'), t2m('18:20'), blocks, []);
+    r.out.forEach(x => tasks.push(mk(x.id, x.s, x.e))); rests.push(...r.rests);
+  }
+  const r = packDrop(EVENING, t2m(EVE_FROM), t2m(BED_READ), blocks, DROP);
+  r.out.forEach(x => tasks.push(mk(x.id, x.s, x.e))); rests.push(...r.rests);
+  tasks.push(mk('bedread', t2m(BED_READ), t2m(BED)));
+  return {tasks: tasks.concat(cls).sort((a, b) => (a.time || '99').localeCompare(b.time || '99')), rests: rests.map(x => ({time: m2t(x.s), dur: x.d}))};
+}
 function tasksFor(date) {
   if (!CFG) return [];
-  if (CFG.sched) {
-    const s = CFG.sched[date] || {};
-    const kind = dayKind(date);
-    const cls = (s.c || []).map(([label, time], k) => ({id: 'c' + k, label, time: time || '', type: 'class'}));
-    const nightClass = cls.some(c => c.time >= '17:00');
-    const base = ROUTINE[kind].map(t => ({id: t[0], label: t[1], time: t[2], type: t[3] || '', opt: nightClass && LIGHT.includes(t[0])}));
-    const extra = [];
-    if (kind !== 'school') extra.push({id: 'sport', label: '户外 / 篮球 1 小时', time: '16:00', type: 'bonus', opt: true});
-    if (kind === 'sat') extra.push({id: 'ewrite', label: '英文小作文 3～5 句', time: '17:30', type: 'bonus', opt: true});
-    if (kind === 'sun') extra.push({id: 'dict', label: '拼写听写（程序念中文）', time: '17:00', type: 'dict'}, {id: 'goodsent', label: '好句积累：抄 2 句、仿写 1 句', time: '17:20', type: 'bonus', opt: true});
-    return base.concat(cls, extra).sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
-  }
+  if (CFG.sched) return planFor(date).tasks;
   let lst = (CFG.dates || {})[date];
   if (!lst) { lst = CFG.weekday[String(isoWeekday(date))]; while (typeof lst === 'string') lst = CFG.weekday[lst]; }
   return (lst || []).map(t => ({id: t[0], label: t[1], time: t[2], type: t[3] || ''}));
@@ -252,12 +342,11 @@ function tasksFor(date) {
 function star(key, amount, date, note) { DATA.stars[key] = {key, amount, date, note, at: Date.now()}; }
 function unstar(key) { delete DATA.stars[key]; }
 function dayProgress(date) {
-  const tasks = tasksFor(date).filter(t => !t.opt || (DATA.taskDone[date] || {})[t.id]), done = DATA.taskDone[date] || {};
+  const tasks = tasksFor(date), done = DATA.taskDone[date] || {};
   return [tasks.filter(t => done[t.id]).length, tasks.length];
 }
-const CORE = ['word', 'ket', 'listen', 'reading', 'bedread'];   // 必做：做完就解锁当天奖励
 const PASS = 16;                                          // 单词自测对 16 个才算背完
-function coreTasks(date) { const ts = tasksFor(date), c = ts.filter(t => CORE.includes(t.id)); return c.length ? c : ts; }
+function coreTasks(date) { const ts = tasksFor(date), c = ts.filter(t => t.type !== 'class'); return c.length ? c : ts; }   // 除了上课，全部必做
 function coreProgress(date) { const done = DATA.taskDone[date] || {}, c = coreTasks(date); return [c.filter(t => done[t.id]).length, c.length]; }
 function refreshBonus(date) {
   const [n, total] = dayProgress(date);
@@ -301,7 +390,7 @@ const LOCAL = {
     const date = q.date || todayStr();
     const done = DATA.taskDone[date] || {};
     const lt = learnedOn(date), cur = lt || currentCard(), wk = wenyanWeek(date);
-    return {date, weekday: isoWeekday(date), tasks: tasksFor(date).map(t => ({...t, done: !!done[t.id]})),
+    return {date, weekday: isoWeekday(date), tasks: tasksFor(date).map(t => ({...t, done: !!done[t.id]})), rests: CFG && CFG.sched ? planFor(date).rests : [],
       card: {day: cur, topics: cur ? CARDS[cur - 1].topics : '', learned_today: !!lt, total: CARDS.length},
       reviews: reviewsDue(date),
       wenyan: {week: wk, items: (wk ? wk.idxs : []).map(i => ({idx: i, t: WENYAN[i].t, checks: wyChecks(i)}))},
@@ -576,7 +665,7 @@ function daySummary(date) {
   const wy = Object.entries(DATA.wenyan).filter(([, d]) => d === date).map(([k]) => WENYAN[+k.split(':')[0]].t + '·' + WY_STAGES[+k.split(':')[1]]);
   const d = rewardsState(date).daily;
   return [`📚 ${date.slice(5).replace('-', '/')} 学习小结`,
-    `必做 ${cn}/${ct}，全部任务 ${ts.filter(t => done[t.id]).length}/${ts.length}${d.unlocked ? '，今日奖励已解锁' : ''}`,
+    `完成 ${cn}/${ct}${d.unlocked ? '，今日奖励已解锁' : ''}`,
     ld ? `🔤 单词：背完 Day ${ld}，自测对 ${testBest(ld)}/20` : '🔤 单词：今天还没背',
     revs.length ? `🔁 复习：${revs.map(v => 'Day ' + v.day).join('、')}` : '',
     said.length ? `🗣 说的英语：${said.join(' / ')}` : '',
@@ -690,7 +779,7 @@ function go(v) {
   render(); scrollTo(0, 0);
 }
 $$('nav button').forEach(b => b.onclick = () => { if (b.dataset.v === 'wenyan') state.wy = null; if (b.dataset.v === 'words') state.cardDay = null; if (b.dataset.v === 'today') state.date = todayIso(); go(b.dataset.v); });
-async function render() { await ({today, words, wenyan, rewards, parent, media, dict: dictView})[state.view](); }
+async function render() { await ({today, words, wenyan, rewards, parent, media, dict: dictView})[state.view](); checkMilestones(); }
 
 /* 家长密码弹层 */
 function askPin(title, onOk) {
@@ -723,62 +812,68 @@ function weekText(w, date) {
   if (w.claimed) return '本周 1 小时游戏已兑现 🎉';
   if (w.unlocked) return isoWeekday(date) >= 6 ? '周一到周五全部完成！周末 1 小时游戏可以用啦' : '已解锁！周六、周日可以用';
   if (w.broken) return '本周有一天没完成，下周一重新开始，加油';
-  return '周一到周五，每天必做全完成，周末多玩 1 小时';
+  return '周一到周五每天全部完成，周末多玩 1 小时';
 }
 
-/* ---------- 今天：一张总览卡 + 按时段的任务清单；点任务进对应的学习页 ---------- */
+/* ---------- 今天：一张总览卡 + 按时段的时间表；全部必做，点任务进对应的学习页 ---------- */
 const GO_TASK = {listen: 'media', word: 'card', ket: 'ket', wenyan: 'wenyan', dict: 'dict'};
 async function today() {
   const d = await api('/api/today?date=' + state.date);
   const r = rewardsState(d.date);
   const done = d.tasks.filter(t => t.done).length, total = d.tasks.length;
-  const [cDone, cTotal] = coreProgress(d.date), coreIds = coreTasks(d.date).map(t => t.id);
+  const [cDone, cTotal] = coreProgress(d.date);
   const isToday = d.date === todayIso();
-  const h = new Date().getHours();
+  const now = new Date(), h = now.getHours(), hm = String(h).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
   const hello = !isToday ? '补打卡' : h < 11 ? '早上好 ☀️' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好 🌙';
   const groups = [['早上', t => t.time < '12:00'], ['下午', t => t.time >= '12:00' && t.time < '18:00'], ['晚上', t => t.time >= '18:00']];
   const nowG = !isToday ? -1 : h < 12 ? 0 : h < 18 ? 1 : 2;
   const dl = r.daily, w = r.weekly, c = d.card;
-  let x = `<div class="row between" style="margin-top:6px">
-      <div><div class="sub">${hello}</div><h1>${md(d.date)} ${WD[d.weekday]}</h1>${holidayName(d.date) ? `<span class="tag" style="background:var(--warn-soft);color:var(--warn)">${esc(holidayName(d.date))}</span>` : ''}</div>
-      <div class="row" style="gap:6px"><span class="chip" style="color:var(--gold)">⭐ ${d.stars}</span><span class="chip" style="color:var(--warn)">🔥 ${d.streak}</span></div></div>
-    <div class="row" style="margin-top:8px;gap:8px"><button class="icon-btn" id="prev">‹</button>
-      ${isToday ? '<span class="faint">点 ‹ 可以补前几天的打卡</span>' : '<button class="icon-btn" id="next">›</button><button class="btn soft sm" id="tod">回到今天</button>'}</div>
+  const nextT = isToday ? d.tasks.find(t => !t.done && t.type !== 'class' && (t.end || '99') > hm) || d.tasks.find(t => !t.done && t.type !== 'class') : null;
+  let x = `<div class="row between" style="margin-top:6px;align-items:flex-end">
+      <div><div class="sub">${hello}</div><h1>${md(d.date)} ${WD[d.weekday]}</h1></div>
+      <div class="row" style="gap:6px;margin-bottom:4px"><span class="chip" style="color:var(--gold)">⭐ ${d.stars}</span><span class="chip" style="color:var(--warn)">🔥 ${d.streak}</span></div></div>
+    <div class="row" style="gap:8px;margin-top:6px">${holidayName(d.date) ? `<span class="tag" style="background:var(--warn-soft);color:var(--warn)">${esc(holidayName(d.date))}</span>` : ''}
+      <button class="link" id="prev">‹ 前一天</button>${isToday ? '' : '<button class="link" id="next">后一天 ›</button><button class="link" id="tod" style="color:var(--pri)">回到今天</button>'}</div>
     ${backupDue() ? '<div class="warn" style="margin-top:12px">💾 超过 7 天没备份了，请家长到「家长」页点「导出备份」</div>' : ''}
     <div class="card"><div class="hero">${ring(cDone, cTotal)}
-      <div style="flex:1;min-width:0"><h2>${cDone === cTotal ? '必做全部完成！' : `必做还差 ${cTotal - cDone} 项`}</h2>
-      <div class="sub" style="margin-top:2px">${dl.claimed ? '今日奖励已兑现 ✅' : dl.unlocked ? (isToday ? '🎮 已解锁：零食 或 20 分钟游戏' : '这天已完成') : '做完必做：零食 或 20 分钟游戏'}</div>
-      <div class="faint" style="margin-top:2px">全部任务 ${done}/${total}${done === total && total ? ' · 额外 +3⭐' : ''}</div>
+      <div style="flex:1;min-width:0"><h2>${cDone === cTotal ? '今天全部完成！' : `还差 ${cTotal - cDone} 项`}</h2>
+      <div class="sub" style="margin-top:2px">${dl.claimed ? '今日奖励已兑现 ✅' : dl.unlocked ? (isToday ? '🎮 已解锁：零食 或 20 分钟游戏' : '这天已完成') : '全部完成：零食 或 20 分钟游戏'}</div>
+      ${nextT && cDone < cTotal ? `<div class="next" data-jump="${nextT.id}">接下来 <b>${nextT.time} ${esc(nextT.label)}</b></div>` : ''}
       ${dl.unlocked && !dl.claimed && isToday ? '<button class="btn sm" id="claimDaily" style="margin-top:8px">去选奖励</button>' : ''}</div></div>
       <div class="wk" id="openWeek">${w.days.map(z => `<i class="${z.state}">${z.state === 'full' ? '✓' : z.label}</i>`).join('')}
-        <span>${w.claimed ? '周末 1 小时已兑现' : w.unlocked ? '周末 1 小时已解锁 🎉' : w.broken ? '本周断了，下周一再来' : '周一到五全完成 → 周末 1 小时'}</span></div></div>`;
+        <span>${w.claimed ? '周末 1 小时已兑现' : w.unlocked ? '周末 1 小时已解锁 🎉' : w.broken ? '本周断了，下周一再来' : '满 5 天，周末多玩 1 小时'}</span></div></div>`;
 
-  if (d.tasks.some(t => t.opt && t.type !== 'bonus')) x += `<div class="warn" style="margin-bottom:4px">📅 今晚有课：英语听力、数学计算、ABC 可以不做</div>`;
   const pend = d.reviews.filter(v => !v.done);
   const sub = t => {
-    if (t.id === 'listen') return t.done ? '' : '选一个英文动画看，看完说一说';
-    if (t.type === 'word' && c.day) return c.learned_today ? `Day ${c.day} 已背完` : `Day ${c.day} · ${esc(c.topics)}`;
-    if (t.type === 'ket') { const ks = ketSession(d.date); return ks.day ? `Day ${ks.day}${ks.due.length ? ` + ${ks.due.length} 个生词` : ''}` : ''; }
-    if (t.id === 'wenyan' && d.wenyan.week) return d.wenyan.items.map(it => `《${esc(it.t)}》${it.checks.length}/5`).join(' ');
-    return '';
+    if (t.type === 'class') return t.end ? `${t.time}–${t.end}` : '';
+    const bits = [`${t.dur} 分钟`];
+    if (t.id === 'listen' && !t.done) bits.push('选一个英文动画');
+    if (t.type === 'word' && c.day) bits.push(`Day ${c.day} · ${esc(c.topics)}`);
+    if (t.type === 'ket') { const ks = ketSession(d.date); if (ks.day) bits.push(`Day ${ks.day}${ks.due.length ? ` + ${ks.due.length} 个生词` : ''}`); }
+    if (t.id === 'wenyan' && d.wenyan.week) bits.push(esc(d.wenyan.week.label));
+    return bits.join(' · ');
   };
   const row = t => {
-    const tag = coreIds.includes(t.id) ? '<span class="tag pri">必做</span>' : t.type === 'class' ? '<span class="tag cls">课</span>' : t.type === 'bonus' ? '<span class="tag ok">加分</span>' : '';
-    const label = t.id === 'listen' ? '听力：英文动画' : t.id === 'wenyan' && d.wenyan.week ? `文言文：${esc(d.wenyan.week.label)}` : esc(t.label);
-    const s = sub(t), goTo = GO_TASK[t.id] || GO_TASK[t.type];
-    return `<div class="task ${t.done ? 'done' : ''}" data-task="${t.id}" data-done="${t.done ? 0 : 1}" data-type="${t.type}" ${goTo && !t.done ? `data-go="${goTo}"` : ''}>
+    const label = t.type === 'class' ? `<span class="tag cls">课</span>${esc(t.label)}` : esc(t.label);
+    const goTo = GO_TASK[t.id] || GO_TASK[t.type];
+    return `<div class="task ${t.done ? 'done' : ''} ${nextT && t.id === nextT.id ? 'now' : ''} ${t.type === 'class' ? 'cls' : ''}" data-task="${t.id}" data-done="${t.done ? 0 : 1}" data-type="${t.type}" ${goTo && !t.done ? `data-go="${goTo}"` : ''}>
+      <span class="tm">${t.time}</span>
       <span class="check" data-tick="1">${t.done ? '✓' : ''}</span>
-      <span class="lbl">${tag}${label}${t.opt && t.type !== 'bonus' ? ' <span class="faint">（可不做）</span>' : ''}${s ? `<small>${s}</small>` : ''}
-        ${t.type === 'word' && pend.length ? `<small style="color:var(--warn)">还要复习：${pend.map(v => `<span class="pill" data-rv="${v.day}">Day ${v.day} ${v.name}</span>`).join('')}</small>` : ''}</span>
-      <span class="tm">${t.time}${goTo && !t.done ? '<br><b style="color:var(--pri)">去做 ›</b>' : `<br><span class="pt">+${t.type === 'word' || t.type === 'ket' ? 2 : 1}⭐</span>`}</span></div>`;
+      <span class="lbl">${label}<small>${sub(t)}</small>
+        ${t.type === 'word' && pend.length ? `<small>${pend.map(v => `<span class="pill" data-rv="${v.day}">复习 Day ${v.day}</span>`).join('')}</small>` : ''}</span>
+      ${goTo && !t.done ? '<span class="go">›</span>' : ''}</div>`;
   };
+  const rest = z => `<div class="rest"><span class="tm">${z.time}</span><span>☕ 休息 ${z.dur} 分钟，喝水、站起来动一动</span></div>`;
   groups.forEach(([name, f], gi) => {
     const ts = d.tasks.filter(f); if (!ts.length) return;
-    const n = ts.filter(t => t.done).length, all = n === ts.length;
-    const open = !all && (nowG < 0 || gi >= nowG || ts.some(t => !t.done && coreIds.includes(t.id)));
-    x += `<details class="card grp" ${open ? 'open' : ''}><summary><span>${name}</span><span class="faint">${all ? '✓ 全部完成' : `${n}/${ts.length}`}</span></summary>${ts.map(row).join('')}</details>`;
+    const items = ts.map(t => ({k: t.time + '1', html: row(t)})).concat((d.rests || []).filter(z => f({time: z.time})).map(z => ({k: z.time + '0', html: rest(z)})))
+      .sort((a, b) => a.k < b.k ? -1 : 1);
+    // 休息排在同一时刻的任务之前；但它属于前一项之后，所以把 "HH:MM0" 放前面正好
+    const todo = ts.filter(t => t.type !== 'class'), n = todo.filter(t => t.done).length, all = todo.length && n === todo.length;
+    const open = !all && (nowG < 0 || gi >= nowG || todo.some(t => !t.done));
+    x += `<details class="card grp" ${open ? 'open' : ''}><summary><span>${name}</span><span class="faint">${all ? '✓ 完成' : `${n}/${todo.length}`}</span></summary>${items.map(z => z.html).join('')}</details>`;
   });
-  x += `<div class="row" style="gap:10px;margin-top:6px"><button class="btn soft block" id="openMedia" style="flex:1">📺 素材库</button><button class="btn block" id="share" style="flex:1">📤 发给家长</button></div>`;
+  x += `<div class="row" style="gap:10px;margin-top:6px"><button class="btn soft block" id="openMedia" style="flex:1">📺 素材库</button><button class="btn soft block" id="share" style="flex:1">📤 发给家长</button></div>`;
   app.innerHTML = x;
 
   $('#share').onclick = async () => {
@@ -791,6 +886,7 @@ async function today() {
   $('#prev').onclick = () => { state.date = addDays(state.date, -1); render(); };
   if ($('#next')) { $('#next').onclick = () => { state.date = addDays(state.date, 1); render(); }; $('#tod').onclick = () => { state.date = todayIso(); render(); }; }
   if ($('#claimDaily')) $('#claimDaily').onclick = () => go('rewards');
+  const nx = $('[data-jump]'); if (nx) nx.onclick = () => { const el = $(`[data-task="${nx.dataset.jump}"]`); if (el) { el.closest('details').open = true; el.scrollIntoView({behavior: 'smooth', block: 'center'}); } };
   const openTask = g => {
     if (g === 'media') { state.mcat = 'en'; go('media'); }
     else if (g === 'card') { state.cardDay = c.day; state.mode = 'all'; state.deck = 'pet'; go('words'); }
@@ -813,9 +909,15 @@ async function toggleTask(task, on, type) {
     if (res.error === 'needtest') { toast(`先去自测，对 ${PASS} 个就自动打勾`); state.cardDay = res.day; state.mode = 'zh'; state.deck = 'pet'; go('words'); return res; }
     if (res.error === 'needpin') { if (pin !== undefined) return {error: '家长密码不对'}; askPin('补打卡（3 天前的要家长确认）', p => doIt(p)); return {}; }
     if (res.error) { if (pin === undefined) toast(res.error); return res; }
-    const after = rewardsState(state.date).daily.unlocked;
-    toast(on ? (!before && after ? '🎉 必做完成！解锁今日奖励' : type === 'word' ? '单词背完 +2⭐' : '完成 +1⭐') : '已取消');
-    render(); return res;
+    const rs = rewardsState(state.date), after = rs.daily.unlocked;
+    if (!on) { toast('已取消'); render(); return res; }
+    const el = document.querySelector(`[data-task="${task}"] .check`), bx = el ? el.getBoundingClientRect() : {left: innerWidth / 2, top: innerHeight / 2, width: 0, height: 0};
+    const cx = bx.left + bx.width / 2, cy = bx.top + bx.height / 2;
+    render();
+    if (!before && after) bigCelebrate('🎮', '今天全部完成！', '零食 或 20 分钟游戏，自己选一个', '去选奖励', () => go('rewards'));
+    else { chime(false); confetti(cx, cy, 18); floatText(cx, cy - 10, type === 'word' || type === 'ket' ? '+2⭐' : '+1⭐');
+      toast(rs.daily.remaining > 0 ? `再做 ${rs.daily.remaining} 项就能玩 🎮` : '完成 +1⭐'); }
+    return res;
   };
   return doIt();
 }
@@ -829,9 +931,9 @@ async function media() {
   let x = `<div class="row" style="margin-top:6px;gap:8px"><button class="icon-btn" id="back">‹</button><div><div class="sub">看动画 · 听故事</div><h1 style="margin-top:0">素材库</h1></div></div>
     <div class="seg" style="margin-top:12px;overflow-x:auto">${CATS.filter(([k]) => all.some(l => catOf(l) === k)).map(([k, ic, n]) => `<button data-mc="${k}" class="${k === cat ? 'on' : ''}" style="flex:none;padding:9px 12px">${ic} ${n}</button>`).join('')}</div>
     <div class="card">${list.length ? `<div class="tiles" style="margin-top:0">${list.map(tile).join('')}</div>` : '<div class="sub">这一类还没有，请家长在「家长」页添加</div>'}
-      ${cat === 'en' ? '<div class="faint" style="margin-top:10px">听不懂没关系，看画面猜意思；看完在下面说一句</div>' : '<div class="faint" style="margin-top:10px">课外兴趣，不算任务，想看就看</div>'}</div>`;
+      ${cat === 'en' ? '<div class="faint" style="margin-top:10px">听不懂没关系，看画面猜意思；看完在下面说一句</div>' : ''}</div>`;
   if (cat === 'en' && lt) x += `<div class="card"><div class="mini"><div class="ic" style="background:var(--ok-soft)">🎧</div>
-      <div style="flex:1"><h2>听力 · 看完说一说</h2><div class="sub">${lt.done ? '今天已完成 ✓' : '看完一集，说一句，再打卡'}</div></div>
+      <div style="flex:1"><h2>听力 · 看完说一说</h2><div class="sub">${lt.done ? '今天已完成 ✓' : '看完说一句，再打卡'}</div></div>
       ${lt.done ? '<span class="tag ok">已完成</span>' : '<button class="btn sm" id="listenDone">看完了 ✓</button>'}</div>${retellBox()}</div>`;
   app.innerHTML = x;
   $('#back').onclick = () => go('today');
@@ -859,9 +961,9 @@ async function media() {
 }
 /* 复述：三个难度 + 词语提示板（点词听发音）；说一句就算完成，可以中英夹杂 */
 const RETELL = [
-  ['⭐ 说一句', [['I like ___ because he is ___.', 'I like Monkey King because he is strong.'], ['Today I watched ___.', 'Today I watched Journey to the West.']]],
-  ['⭐⭐ 答三问', [['Who is in the story?', '→ Monkey King and Tang Monk.'], ['What happened?', '→ Monkey King fought a monster.'], ['How was it?', '→ It was funny / exciting / scary.']]],
-  ['⭐⭐⭐ 讲一讲', [['First, ___.', '首先发生了什么'], ['Then, ___.', '然后呢'], ['Finally, ___.', '最后怎样'], ['I like ___ because ___.', '我喜欢谁，为什么']]],
+  ['说一句', [['I like ___ because he is ___.', 'I like Monkey King because he is strong.'], ['Today I watched ___.', 'Today I watched Journey to the West.']]],
+  ['答三问', [['Who is in the story?', '→ Monkey King and Tang Monk.'], ['What happened?', '→ Monkey King fought a monster.'], ['How was it?', '→ It was funny / exciting / scary.']]],
+  ['讲一讲', [['First, ___.', '首先发生了什么'], ['Then, ___.', '然后呢'], ['Finally, ___.', '最后怎样'], ['I like ___ because ___.', '我喜欢谁，为什么']]],
 ];
 const WORDS = [
   ['人物', [['Monkey King', '孙悟空'], ['Tang Monk', '唐僧'], ['Pigsy', '猪八戒'], ['Sandy', '沙僧'], ['the white horse', '白龙马'], ['a monster', '妖怪'], ['a king', '国王']]],
@@ -1161,56 +1263,164 @@ async function wenyanDetail(i) {
   });
 }
 
+/* ---------- 即时激励：等级（星星=经验）、徽章、打勾动画与提示音、全部完成庆祝 ---------- */
+const LEVELS = [[0, '学习新手', '🐣'], [20, '见习学徒', '🐥'], [50, '小小探险家', '🧭'], [100, '勇敢骑士', '🛡️'], [180, '智慧法师', '🪄'], [300, '闪电战士', '⚡'],
+  [450, '星际队长', '🚀'], [650, '传奇英雄', '🦸'], [900, '超级大师', '🐉'], [1200, '宇宙之王', '👑']];
+function levelOf(xp) {
+  let i = 0; while (i + 1 < LEVELS.length && xp >= LEVELS[i + 1][0]) i++;
+  const [base, name, ic] = LEVELS[i], nxt = LEVELS[i + 1];
+  return {lv: i + 1, name, ic, xp, base, next: nxt ? nxt[0] : null, nextName: nxt ? nxt[1] : '', pct: nxt ? (xp - base) / (nxt[0] - base) : 1};
+}
+function bestStreak() {
+  const start = CFG ? CFG.start_date : todayIso(), t = todayIso(); let d = start, cur = 0, best = 0;
+  while (d <= t) { if (coreFull(d)) { cur++; best = Math.max(best, cur); } else if (d < t) cur = 0; d = addDays(d, 1); }
+  return best;
+}
+function badgeList() {
+  const days = Object.entries(DATA.taskDone), cnt = id => days.filter(([, m]) => m[id]).length;
+  const early = days.filter(([, m]) => m.listen && new Date(m.listen).getHours() < 8).length;
+  const full = days.filter(([d]) => coreFull(d)).length, bs = bestStreak(), words = Object.keys(DATA.wordLearn).length;
+  const wy = WENYAN.filter((w, i) => DATA.wenyan[i + ':2']).length, said = Object.values(DATA.said || {}).reduce((a, l) => a + l.length, 0);
+  const wk = Object.keys(DATA.claims).some(k => k.startsWith('weekly:'));
+  const ket = Object.keys((DATA.ket || {}).done || {}).length, any = days.some(([, m]) => Object.keys(m).length);
+  return [
+    ['first', '🌱', '第一步', '完成第一项任务', any, 0, 1],
+    ['perfect', '💯', '完美一天', '一天全部完成', full >= 1, full, 1],
+    ['s3', '🔥', '三连胜', '连续 3 天全部完成', bs >= 3, bs, 3],
+    ['s7', '☄️', '七连胜', '连续 7 天全部完成', bs >= 7, bs, 7],
+    ['s21', '🏆', '21 天习惯王', '连续 21 天全部完成', bs >= 21, bs, 21],
+    ['week', '🎮', '周冠军', '拿到一次周末 1 小时', wk, wk ? 1 : 0, 1],
+    ['w10', '📘', '单词小达人', '背完 10 张单词卡', words >= 10, words, 10],
+    ['w30', '📗', '单词高手', '背完 30 张单词卡', words >= 30, words, 30],
+    ['w90', '📕', '单词大师', '背完全部 90 张', words >= 90, words, 90],
+    ['ket', '🔁', 'KET 回炉', 'KET 复习 20 天', ket >= 20, ket, 20],
+    ['wy1', '📜', '小古文', '背会 1 篇文言文', wy >= 1, wy, 1],
+    ['wy5', '🎎', '古文少侠', '背会 5 篇文言文', wy >= 5, wy, 5],
+    ['early', '🌅', '早起鸟', '早上 8 点前完成听力 5 次', early >= 5, early, 5],
+    ['say', '🗣️', '开口王', '用英语说 20 句', said >= 20, said, 20],
+    ['sport', '🏀', '运动健将', '户外 / 篮球 8 次', cnt('sport') >= 8, cnt('sport'), 8],
+    ['read', '📖', '书虫', '睡前阅读 30 天', cnt('bedread') >= 30, cnt('bedread'), 30],
+  ].map(([k, ic, name, desc, got, n, need]) => ({k, ic, name, desc, got, n: Math.min(n, need), need}));
+}
+let audioCtx = null;
+function chime(big) {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const notes = big ? [523, 659, 784, 1047] : [784, 1175];
+    notes.forEach((f, i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain(), t0 = audioCtx.currentTime + i * (big ? .11 : .08);
+      o.type = 'sine'; o.frequency.value = f; o.connect(g); g.connect(audioCtx.destination);
+      g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(.18, t0 + .02); g.gain.exponentialRampToValueAtTime(.001, t0 + (big ? .5 : .3));
+      o.start(t0); o.stop(t0 + .55);
+    });
+  } catch (e) {}
+}
+function confetti(x, y, n) {
+  const box = document.createElement('div'); box.className = 'confetti'; document.body.appendChild(box);
+  const cols = ['#5b5bd6', '#8b7cf6', '#16a36e', '#e8a317', '#f0607a', '#3cb4e6'];
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement('i'), a = Math.random() * Math.PI * 2, v = 60 + Math.random() * (n > 40 ? 260 : 110);
+    p.style.cssText = `left:${x}px;top:${y}px;background:${cols[i % cols.length]};--dx:${Math.cos(a) * v}px;--dy:${Math.sin(a) * v - 60}px;--r:${Math.random() * 720 - 360}deg;animation-delay:${Math.random() * .08}s`;
+    box.appendChild(p);
+  }
+  setTimeout(() => box.remove(), 1400);
+}
+function floatText(x, y, text) {
+  const el = document.createElement('div'); el.className = 'floaty'; el.textContent = text; el.style.left = x + 'px'; el.style.top = y + 'px';
+  document.body.appendChild(el); setTimeout(() => el.remove(), 1100);
+}
+function bigCelebrate(ic, title, sub, btn, onBtn) {
+  chime(true); confetti(innerWidth / 2, innerHeight * .38, 70);
+  const bg = document.createElement('div'); bg.className = 'sheet-bg center';
+  bg.innerHTML = `<div class="cele"><div class="cele-ic">${ic}</div><h2>${title}</h2><div class="sub" style="margin-top:6px">${sub}</div>
+    <button class="btn block" style="margin-top:18px">${btn || '太棒了！'}</button></div>`;
+  document.body.appendChild(bg);
+  bg.onclick = e => { if (e.target === bg || e.target.tagName === 'BUTTON') { bg.remove(); if (e.target.tagName === 'BUTTON' && onBtn) onBtn(); } };
+}
+/* 新等级、新徽章：每次渲染后检查一次，只庆祝一次 */
+function checkMilestones() {
+  if (!CFG || document.querySelector('.cele')) return;
+  const seen = DATA.seen = DATA.seen || {lv: 0, badges: []};
+  const L = levelOf(earned());
+  if (!seen.init) { seen.init = 1; seen.lv = L.lv; seen.badges = badgeList().filter(b => b.got).map(b => b.k); save(); return; }   // 第一次用这一版：已有的不补庆祝
+  if (L.lv > seen.lv) { seen.lv = L.lv; save(); bigCelebrate(L.ic, `升级！Lv${L.lv} ${L.name}`, L.next ? `再攒 ${L.next - L.xp} 颗星升到「${L.nextName}」` : '已经是最高等级了！'); return; }
+  const nb = badgeList().find(b => b.got && !seen.badges.includes(b.k));
+  if (nb) { seen.badges.push(nb.k); save(); bigCelebrate(nb.ic, `新徽章：${nb.name}`, nb.desc + ' ✓', '收下徽章'); }
+}
+
 /* ---------- 奖励 ---------- */
 async function rewards() {
   const t = todayIso(), r = rewardsState(t), dl = r.daily, wk = r.weekly, bg = r.big;
-  const ready = bg.items.filter(m => m.unlocked && !m.claimed), done = bg.items.filter(m => m.claimed);
-  const next = bg.items.filter(m => !m.unlocked).slice(0, 2);
-  let x = `<div style="margin-top:6px"><div class="sub">完成任务，赢游戏时间</div><h1>我的奖励</h1></div>
-    <div class="rw ${dl.unlocked && !dl.claimed ? 'on' : ''}"><div class="row between"><span class="tag">每日奖励</span><span class="faint">今天有效 · 二选一</span></div>
+  const [cDone, cTotal] = coreProgress(t), L = levelOf(earned()), bs = badgeList(), got = bs.filter(b => b.got).length;
+  const ready = bg.items.filter(m => m.unlocked && !m.claimed);
+  const nextBig = bg.items.filter(m => !m.unlocked)[0];
+  const pct = cTotal ? cDone / cTotal : 0;
+  let x = `<div style="margin-top:6px"><div class="sub">每做一项都算数</div><h1>我的奖励</h1></div>
+    <div class="lvcard" id="toBadges"><div class="row" style="gap:14px"><div class="ic">${L.ic}</div>
+      <div style="flex:1;min-width:0"><div style="opacity:.85;font-size:13px">Lv${L.lv}</div><div style="font-size:22px;font-weight:800">${L.name}</div>
+      <div style="opacity:.85;font-size:13px;margin-top:2px">⭐ ${L.xp}${L.next ? ` · 再攒 ${L.next - L.xp} 颗升「${L.nextName}」` : ' · 最高等级'}</div></div>
+      <div style="text-align:center"><div style="font-size:26px">🔥</div><b>${streak(t)}</b><div style="font-size:11px;opacity:.85">连续天</div></div></div>
+      <div class="lvbar"><i style="width:${Math.round(L.pct * 100)}%"></i></div></div>
+
+    <div class="rw ${dl.unlocked && !dl.claimed ? 'on' : ''}"><div class="row between"><span class="tag">今日奖励</span><span class="faint">${dl.claimed ? '已兑现' : '今天有效'}</span></div>
       <div class="big">🍫 零食 或 🎮 20 分钟</div>
-      <div class="sub">${dl.claimed ? '今天已兑现：' + esc(dl.claimed.note.replace('每日奖励：', '')) + ' ✅' : dl.unlocked ? '今天的任务全部完成，自己选一个吧！' : `今天还差 ${dl.remaining} 项任务`}</div>
+      ${dl.claimed ? `<div class="sub">今天选了：${esc(dl.claimed.note.replace('每日奖励：', ''))} ✅ 明天继续！</div>`
+        : `<div class="charge ${dl.unlocked ? 'full' : ''}"><i style="width:${Math.max(6, pct * 100)}%"></i><b>${dl.unlocked ? '⚡ 充满啦！选一个吧' : `⚡ 充能 ${cDone}/${cTotal} · 再做 ${cTotal - cDone} 项`}</b></div>`}
       ${dl.unlocked && !dl.claimed ? '<div class="row" style="margin-top:14px"><button class="btn block" id="cDs">🍫 一份零食</button><button class="btn block" id="cDg">🎮 20 分钟游戏</button></div>' : ''}</div>
 
-    <div class="rw ${wk.usable && !wk.claimed ? 'on' : ''}"><div class="row between"><span class="tag">周末奖励</span><span class="faint">周六、周日用</span></div>
-      <div class="big">🏆 1 小时游戏</div>${weekDots(wk)}
+    <div class="rw ${wk.usable && !wk.claimed ? 'on' : ''}"><div class="row between"><span class="tag">周末大奖</span><span class="faint">周一到周五每天全完成</span></div>
+      <div class="big">🏆 多玩 1 小时</div>${weekDots(wk)}
       <div class="sub" style="margin-top:10px">${weekText(wk, t)}</div>
       ${wk.usable && !wk.claimed ? '<button class="btn" id="cW" style="margin-top:14px">找家长兑现</button>' : ''}</div>
 
-    <div class="rw ${ready.length ? 'on' : ''}"><div class="row between"><span class="tag">成长大奖</span><span class="faint">不过期</span></div>
+    <div class="rw ${ready.length ? 'on' : ''}"><div class="row between"><span class="tag">成长大奖</span><span class="faint">攒着不过期</span></div>
       <div class="big" style="${bg.name.length > 10 ? 'font-size:20px;line-height:1.35' : ''}">🎁 ${esc(bg.name)}</div>
-      <div class="sub">单词卡每背完 10 张、文言文每背会 1 篇，各得一次</div>
-      ${ready.length ? `<div style="margin-top:12px;font-weight:700">可以兑现 ${ready.length} 次：</div>` + ready.map(m => `<div class="row between" style="margin-top:8px"><span>${esc(m.label)}</span><button class="btn sm" data-cb="${m.key}">兑现</button></div>`).join('') : ''}
-      <div style="margin-top:14px"><div class="row between faint"><span>单词卡 ${bg.words} / ${bg.nextWord} 张</span><span>下一次大奖</span></div>
-        <div class="bar" style="margin-top:6px"><i style="width:${Math.min(100, (bg.words % 10) / 10 * 100 || (bg.words && bg.words % 10 === 0 ? 100 : 0))}%"></i></div></div>
-      ${next.length ? `<div class="faint" style="margin-top:10px">接下来：${next.map(m => esc(m.label)).join('、')}</div>` : ''}</div>`;
+      ${ready.length ? `<div style="margin-top:8px;font-weight:700">可以兑现 ${ready.length} 次！</div>` + ready.map(m => `<div class="row between" style="margin-top:8px"><span>${esc(m.label)}</span><button class="btn sm" data-cb="${m.key}">兑现</button></div>`).join('')
+        : `<div class="sub">${nextBig ? `下一个：${esc(nextBig.label)}` : '全部拿到了！'}</div>`}
+      <div style="margin-top:12px"><div class="row between faint"><span>单词卡 ${bg.words} / ${bg.nextWord} 张</span><span>文言文背会 1 篇也算一次</span></div>
+        <div class="bar" style="margin-top:6px"><i style="width:${Math.min(100, (bg.words % 10) * 10 || (bg.words ? 100 : 0))}%"></i></div></div></div>
+
+    <div class="card" id="badges"><div class="row between"><h2>🏅 徽章墙</h2><span class="faint">${got} / ${bs.length}</span></div>
+      <div class="badges">${bs.map(b => `<div class="badge ${b.got ? '' : 'off'}" title="${esc(b.desc)}"><div class="bi">${b.ic}</div>${esc(b.name)}<small>${b.got ? '已获得' : `${b.n}/${b.need}`}</small></div>`).join('')}</div></div>`;
   const hist = await api('/api/claims');
-  x += `<div class="sec-title">兑现记录</div><div class="card" style="padding:4px 18px">${hist.length ? hist.slice(0, 20).map(h => `<div class="mile"><span style="flex:1">${esc(h.note)}</span><span class="faint">${h.date.slice(5).replace('-', '/')}</span></div>`).join('') : '<div class="faint" style="padding:14px 0">还没有，加油！</div>'}</div>`;
+  x += `<details class="card grp"><summary><span>兑现记录</span><span class="faint">${hist.length} 次</span></summary>${hist.length ? hist.slice(0, 30).map(h => `<div class="mile"><span style="flex:1">${esc(h.note)}</span><span class="faint">${h.date.slice(5).replace('-', '/')}</span></div>`).join('') : '<div class="faint" style="padding:6px 0 14px">还没有，加油！</div>'}</details>`;
   app.innerHTML = x;
-  const claim = (key, title, msg, choice) => askPin('兑现：' + title, async p => { const res = await api('/api/claim', {key, pin: p, choice}); if (!res.error) { toast(msg); render(); } return res; });
-  if ($('#cDs')) $('#cDs').onclick = () => claim(dl.key, '一份零食', '去挑零食吧 🍫', 'snack');
-  if ($('#cDg')) $('#cDg').onclick = () => claim(dl.key, '20 分钟游戏', '去玩吧 🎮', 'game');
-  if ($('#cW')) $('#cW').onclick = () => claim(wk.key, '周末 1 小时游戏', '周末快乐 🏆');
-  $$('[data-cb]').forEach(b => b.onclick = () => claim(b.dataset.cb, bg.name, '大奖已兑现 🎁'));
+  const claim = (key, title, msg, choice) => askPin('兑现：' + title, async p => { const res = await api('/api/claim', {key, pin: p, choice}); if (!res.error) { render(); setTimeout(() => bigCelebrate(choice === 'snack' ? '🍫' : choice === 'game' ? '🎮' : '🎁', msg, '这是你自己挣来的！'), 50); } return res; });
+  if ($('#cDs')) $('#cDs').onclick = () => claim(dl.key, '一份零食', '去挑零食吧！', 'snack');
+  if ($('#cDg')) $('#cDg').onclick = () => claim(dl.key, '20 分钟游戏', '去玩 20 分钟吧！', 'game');
+  if ($('#cW')) $('#cW').onclick = () => claim(wk.key, '周末 1 小时游戏', '周末多玩 1 小时！');
+  $$('[data-cb]').forEach(b => b.onclick = () => claim(b.dataset.cb, bg.name, '成长大奖到手！'));
+  $('#toBadges').onclick = () => $('#badges').scrollIntoView({behavior: 'smooth'});
 }
 
 /* ---------- 家长 ---------- */
 async function parent() {
   const s = await api('/api/stats');
+  const t = todayIso(), start = CFG ? CFG.start_date : t, tt = tasksFor(t).filter(z => z.type !== 'class'), dn = DATA.taskDone[t] || {};
+  const left = tt.filter(z => !dn[z.id]);
+  const days7 = [...Array(7)].map((_, i) => addDays(t, i - 6)).filter(d => d >= start);
+  const miss = {};
+  days7.filter(d => d < t).forEach(d => { const m = DATA.taskDone[d] || {}; tasksFor(d).filter(z => z.type !== 'class' && !m[z.id]).forEach(z => { miss[z.label] = (miss[z.label] || 0) + 1; }); });
+  const missTop = Object.entries(miss).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const L = levelOf(s.earned), ketDone = Object.keys((DATA.ket || {}).done || {}).length;
+  const prog = (name, n, total, col) => `<div style="margin-top:12px"><div class="row between"><span>${name}</span><span class="faint">${n} / ${total}</span></div><div class="bar" style="margin-top:6px"><i style="width:${total ? Math.min(100, n / total * 100) : 0}%;${col ? 'background:' + col : ''}"></i></div></div>`;
   let x = `<div style="margin-top:6px"><div class="sub">只给家长看</div><h1>家长看板</h1></div>
-    <div class="stats" style="margin-top:14px">
-      <div class="stat"><b style="color:var(--warn)">${s.streak}</b><span class="faint">连续打卡天</span></div>
-      <div class="stat"><b>${s.words_learned}<span class="faint">/${s.cards_total}</span></b><span class="faint">单词卡</span></div>
-      <div class="stat"><b>${s.wenyan_memorized}<span class="faint">/${s.wenyan_total}</span></b><span class="faint">文言文背会</span></div></div>
-    ${s.reviews_pending ? `<div class="warn" style="margin-top:14px">有 ${s.reviews_pending} 张单词卡到了复习时间还没复习</div>` : ''}
-    <div class="card"><h2>最近 ${s.history.length} 天</h2><div class="hist">` +
+    <div class="card"><div class="row between"><h2>今天</h2><span class="tag" style="${left.length ? 'background:var(--warn-soft);color:var(--warn)' : 'background:var(--ok-soft);color:var(--ok)'}">${tt.length - left.length} / ${tt.length}</span></div>
+      <div class="sub" style="margin-top:6px">${left.length ? '还没做：' + left.map(z => `${esc(z.label)}<span class="faint">（${z.time}）</span>`).join('、') : '全部完成 🎉'}</div>
+      <div class="row" style="gap:16px;margin-top:12px;flex-wrap:wrap"><span>🔥 连续 <b>${s.streak}</b> 天</span><span>🏅 最长 <b>${bestStreak()}</b> 天</span><span>${L.ic} Lv${L.lv} ${L.name}</span></div></div>
+    ${s.reviews_pending ? `<div class="warn">📌 有 ${s.reviews_pending} 张单词卡到了复习时间还没复习</div>` : ''}
+    <div class="card"><h2>最近 7 天</h2>
+      <div class="d7">${days7.map(d => { const [n, tot] = dayProgress(d), f = coreFull(d); return `<div><i class="${f ? 'full' : d === t ? 'today' : n ? 'part' : ''}" style="--p:${tot ? n / tot : 0}">${f ? '✓' : tot ? Math.round(n / tot * 100) + '%' : ''}</i>${'日一二三四五六'[new Date(d + 'T00:00').getDay()]}</div>`; }).join('')}</div>
+      ${missTop.length ? `<div class="faint" style="margin-top:12px">最常没做完：${missTop.map(([k, v]) => `${esc(k)} ${v} 次`).join('、')}</div>` : '<div class="faint" style="margin-top:12px">还没有往日数据</div>'}</div>
+    <div class="card"><h2>学习进度</h2>
+      ${prog('PET 单词卡', s.words_learned, s.cards_total)}${prog('KET 复习', ketDone, (CONTENT.ket || []).length, 'var(--gold)')}${prog('文言文背会', s.wenyan_memorized, s.wenyan_total, 'var(--ok)')}</div>
+    ${s.history.length > 7 ? `<div class="card"><h2>最近 ${s.history.length} 天</h2><div class="hist">` +
     s.history.map(h => `<i class="${h.total && h.done === h.total ? 'full' : ''}" style="height:${h.total ? Math.max(5, h.done / h.total * 100) : 5}%"></i>`).join('') +
-    `</div><div class="row between faint" style="margin-top:6px"><span>${s.history[0] ? s.history[0].date.slice(5).replace('-', '/') : ''}</span><span>今天</span></div>
-     <div class="faint" style="margin-top:6px">绿色 = 当天全部完成（解锁零食或 20 分钟游戏）</div></div>
-    <div class="card"><h2>⭐ 星星积分</h2><div class="sub" style="margin-top:4px">一共 ${s.earned} 颗，只记录努力，不用来换东西</div>
-      <div style="margin-top:8px">${s.recent.slice(0, 8).map(r => `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><span style="font-size:14px">${esc(r.note)}</span><span class="faint">${r.date.slice(5).replace('-', '/')} +${r.amount}</span></div>`).join('') || '<div class="faint">还没有</div>'}</div></div>
+    `</div><div class="row between faint" style="margin-top:6px"><span>${s.history[0] ? s.history[0].date.slice(5).replace('-', '/') : ''}</span><span>今天</span></div></div>` : ''}
+    <details class="card grp"><summary><span>⭐ 星星明细</span><span class="faint">共 ${s.earned} 颗</span></summary>
+      ${s.recent.slice(0, 15).map(r => `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><span style="font-size:14px">${esc(r.note)}</span><span class="faint">${r.date.slice(5).replace('-', '/')} +${r.amount}</span></div>`).join('') || '<div class="faint" style="padding-bottom:12px">还没有</div>'}</details>
 
-    <div class="sec-title">设置</div>
+    <details class="setbox"><summary class="sec-title">⚙️ 设置、素材链接与备份</summary>
     <div class="card"><h2>🎁 成长大奖的奖品</h2><div class="sub" style="margin:4px 0 10px">现在：${esc(bigName())}</div>
       <input id="bn" placeholder="例如：去一次蹦床馆 / 一盒巧克力"><button class="btn sm" id="bnSave" style="margin-top:10px">保存</button></div>
     <div class="card"><h2>📺 素材库链接</h2>
@@ -1231,7 +1441,7 @@ async function parent() {
       <label class="btn soft sm">导入备份文件<input type="file" id="impf" accept=".json,application/json,text/plain" hidden></label></div>
       <textarea id="bk" rows="3" style="margin-top:10px;font-size:12px" placeholder="也可以把备份文字粘贴到这里"></textarea>
       <button class="btn soft sm" id="impt" style="margin-top:8px">用粘贴的文字恢复</button>
-      <div class="faint" style="margin-top:8px">上次备份：${DATA.lastBackup ? DATA.lastBackup.slice(5).replace('-', '/') : '还没有'}${backupDue() ? ' <b style="color:var(--warn)">· 该备份了</b>' : ''}　上次保存：${DATA.savedAt ? esc(new Date(DATA.savedAt).toLocaleString('zh-CN', {hour12: false}).slice(0, -3)) : '还没有'}</div></div>`;
+      <div class="faint" style="margin-top:8px">上次备份：${DATA.lastBackup ? DATA.lastBackup.slice(5).replace('-', '/') : '还没有'}${backupDue() ? ' <b style="color:var(--warn)">· 该备份了</b>' : ''}　上次保存：${DATA.savedAt ? esc(new Date(DATA.savedAt).toLocaleString('zh-CN', {hour12: false}).slice(0, -3)) : '还没有'}</div></div></details>`;
   app.innerHTML = x;
   $('#luSave').onclick = () => { const u = $('#lu').value, n = $('#ln').value; if (!u.trim() || (!n.trim() && !/#setup=/.test(u))) { toast('链接和名字都要填'); return; } askPin('添加素材', async p => { const r = await api('/api/listen', {pin: p, url: u, name: n, cat: $('#lc').value}); if (!r.error) { toast(r.imported ? '链接包导入成功' : '已添加'); render(); } return r; }); };
   $('#recGo').onclick = () => askPin('导入推荐素材', async p => { const r = await api('/api/listen/recommended', {pin: p}); if (!r.error) { toast(r.added ? `已导入 ${r.added} 个` : '都已经有了'); render(); } return r; });
