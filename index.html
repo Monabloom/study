@@ -267,11 +267,13 @@ const diffDays = (a, b) => Math.round((new Date(a + 'T00:00') - new Date(b + 'T0
 /* 固定学习任务（不含任何课程信息），课程从课表同步进来；全部必做，按时长自动排时间表并留出休息 */
 const LABEL = {listen: '英语听力：英文动画', ket: 'KET 复习 20 个', wenyan: '文言文 1 篇', homework: '学校作业', eng: '英语阅读 + ABC Reading', word: '背单词 PET 20 个', math: '数学计算',
   bedread: '阅读', sport: '户外 / 篮球', ewrite: '英文小作文 3～5 句', dict: '拼写听写', goodsent: '好句积累：抄 2 句、仿写 1 句'};
-const TYPE = {word: 'word', ket: 'ket', wenyan: 'wenyan', dict: 'dict'};
-const DUR = {listen: 15, ket: 10, wenyan: 10, homework: 40, eng: 30, word: 20, math: 10, bedread: 20, sport: 60, ewrite: 15, dict: 10, goodsent: 15};   // 分钟（11/18 家长定）
+const TYPE = {word: 'word', ket: 'ket', wenyan: 'wenyan', dict: 'dict', review: 'review'};
+const DUR = {review: 10, listen: 15, ket: 10, wenyan: 10, homework: 40, eng: 30, word: 20, math: 10, bedread: 20, sport: 60, ewrite: 15, dict: 10, goodsent: 15};   // 分钟（11/18 家长定）
 /* 晚上（家长定，不写时间只按顺序列）：作业 → 英语阅读+ABC 30 → 休 15 → 单词 20 + KET 10 → 休 10 → 数学/文言文隔天 10 → 21:50 阅读 → 22:10 睡；[任务, 做完后休息分钟] */
 const EVENING = [['homework', 0], ['eng', 15], ['word', 0], ['ket', 10], ['math', 0]];
-const DROP = ['math', 'wenyan', 'eng', 'ket'];   // 有课排不下时依次挪掉（当天不出现）
+const DROP = ['math', 'wenyan', 'eng', 'ket', 'review'];
+const WEEKEND_EXTRA = ['sport', 'ewrite', 'dict', 'goodsent'];   // 周末加的几项：照常列出、单独给星星，不算进当天奖励
+const LUNCH = ['12:00', '13:30'];   // 有课排不下时依次挪掉（当天不出现）
 const MORNING_TASKS = ['listen'];   // 早上：英语听力（看英文动画）
 const rotSlot = date => ((diffDays(date, '2026-11-18') % 2) + 2) % 2 === 0 ? 'math' : 'wenyan';   // 数学、文言文隔天轮换（11/18 起数学先）
 const EVE_FROM = '19:35', BED_READ = '21:50', BED = '22:10';
@@ -375,16 +377,25 @@ function planFor(date) {
     const st = time ? t2m(time) : null, en = st === null ? null : end ? t2m(end) : st + classDur(label);
     return {id: 'c' + k, label, time: time || '', end: en === null ? '' : m2t(en), type: 'class', s: st, e: en};
   });
-  const blocks = cls.filter(c => c.s !== null);
-  const mk = (id, a, b, parts) => ({id, label: LABEL[id], time: m2t(a), end: m2t(b), dur: parts ? parts.reduce((n, [x, y]) => n + y - x, 0) : b - a, type: TYPE[id] || '', parts: parts && parts.length > 1 ? parts.map(([x, y]) => m2t(x) + '–' + m2t(y)) : null});
+  const blocks = cls.filter(c => c.s !== null).sort((a, b) => a.s - b.s);
+  const mk = (id, a, b, parts) => ({id, label: id === 'review' ? `复习旧单词卡 ${reviewsDue(date).length} 张` : LABEL[id], time: m2t(a), end: m2t(b), dur: parts ? parts.reduce((n, [x, y]) => n + y - x, 0) : b - a, type: TYPE[id] || '', parts: parts && parts.length > 1 ? parts.map(([x, y]) => m2t(x) + '–' + m2t(y)) : null});
   const tasks = [], rests = [];
   let ms = t2m(MORNING[kind]); MORNING_TASKS.forEach(id => { tasks.push(mk(id, ms, ms + DUR[id])); ms += DUR[id]; });
-  if (kind !== 'school') {
+  DUR.review = Math.max(5, 5 * reviewsDue(date).length);
+  let eve = EVENING.map(c => c[0] === 'math' ? [rotSlot(date), c[1]] : c);
+  const nRev = reviewsDue(date).length;   // 到期的旧单词卡（记忆曲线），每张约 5 分钟
+  if (nRev) { const k = eve.findIndex(c => c[0] === 'ket'); eve.splice(k, 1, ['ket', 0], ['review', eve[k][1]]); }
+  if (kind !== 'school') {   // 周末 / 假日：学校作业放白天第一个整块空档，晚上不再排
+    const busy = blocks.concat([{s: t2m(LUNCH[0]), e: t2m(LUNCH[1])}]).sort((a, b) => a.s - b.s);
+    let t = ms + 10;
+    for (let b; (b = busy.find(b => b.e > t)) && b.s - t < DUR.homework;) t = b.e + 10;
+    const hw = t + DUR.homework <= t2m('18:20') ? {s: t, e: t + DUR.homework} : null;
+    if (hw) { tasks.push(mk('homework', hw.s, hw.e)); eve = eve.filter(c => c[0] !== 'homework'); }
     const aft = kind === 'sun' ? ['sport', 'dict', 'goodsent'] : kind === 'sat' ? ['sport', 'ewrite'] : ['sport'];
-    const r = packDrop(aft, t2m('15:00'), t2m('18:20'), blocks, []);
+    const r = packDrop(aft, t2m('15:00'), t2m('18:20'), (hw ? blocks.concat([hw]) : blocks.slice()).sort((a, b) => a.s - b.s), []);
     r.out.forEach(x => tasks.push(mk(x.id, x.s, x.e))); rests.push(...r.rests);
   }
-  const r = seqDrop(EVENING.map(c => c[0] === 'math' ? [rotSlot(date), c[1]] : c), t2m(EVE_FROM), t2m(BED_READ), blocks);
+  const r = seqDrop(eve, t2m(EVE_FROM), t2m(BED_READ), blocks);
   r.out.forEach(x => tasks.push({...mk(x.id, x.s, x.e, x.parts), flex: true})); rests.push(...r.rests.map(z => ({...z, flex: true})));   // 晚上不写时间，按顺序做
   tasks.push({...mk('bedread', t2m(BED_READ), t2m(BED)), flex: true});
   return {tasks: tasks.concat(cls).sort((a, b) => (a.time || '99').localeCompare(b.time || '99')), rests: rests.map(x => ({time: m2t(x.s), dur: x.d, flex: !!x.flex}))};
@@ -403,8 +414,16 @@ function dayProgress(date) {
   return [tasks.filter(t => done[t.id]).length, tasks.length];
 }
 const PASS = 16;                                          // 单词自测对 16 个才算背完
-function coreTasks(date) { const ts = tasksFor(date), c = ts.filter(t => t.type !== 'class'); return c.length ? c : ts; }   // 除了上课，全部必做
+function coreTasks(date) {   // 算奖励的任务：除了上课全部；周末加的户外/小作文/听写/好句单独给星星，不算
+  const ts = tasksFor(date), c = ts.filter(t => t.type !== 'class' && !(dayKind(date) !== 'school' && WEEKEND_EXTRA.includes(t.id))); return c.length ? c : ts;
+}
 function coreProgress(date) { const done = DATA.taskDone[date] || {}, c = coreTasks(date); return [c.filter(t => done[t.id]).length, c.length]; }
+function syncReview(date) {   // 当天到期的旧卡都复习完 → 自动勾上"复习旧单词卡"
+  const rv = reviewsDue(date), t = tasksFor(date).find(x => x.type === 'review');
+  if (!t || !rv.length || rv.some(v => !v.done)) return;
+  DATA.taskDone[date] = DATA.taskDone[date] || {};
+  if (!DATA.taskDone[date][t.id]) { DATA.taskDone[date][t.id] = Date.now(); star(`task:${date}:${t.id}`, 1, date, '复习旧单词卡'); refreshBonus(date); }
+}
 function refreshBonus(date) {
   const [n, total] = dayProgress(date);
   if (total && n === total) star('bonus:' + date, 3, date, '全部完成奖励'); else unstar('bonus:' + date);
@@ -460,6 +479,7 @@ const LOCAL = {
     if (date > today) return {error: '不能提前打卡哦'};
     if (date < addDays(today, -1) && String(b.pin) !== String(pin())) return {error: 'needpin'};
     if (done && t.type === 'ket' && !ketDoneOn(date)) return {error: 'needket'};
+    if (done && t.type === 'review' && reviewsDue(date).some(v => !v.done)) return {error: 'needreview', day: reviewsDue(date).find(v => !v.done).day};
     if (done && t.type === 'dict' && !(((DATA.dict || {})[date] || {}).done)) return {error: 'needdict'};
     if (done && t.type === 'word' && !learnedOn(date)) {
       const cur = currentCard();
@@ -492,12 +512,13 @@ const LOCAL = {
       }
       const due = reviewsDue(date).find(v => v.day === day && !v.done);
       if (due) { DATA.wordReview[day + ':' + due.stage] = date; star(`review:${day}:${due.stage}`, 1, date, `复习 Day ${day}（${due.name}）`); out.reviewed = due.name; }
+      syncReview(date);
     }
     save(); return out;
   },
   'POST /api/review'(b) {
     const day = +b.day, stage = +b.stage, date = b.date || todayStr(), k = day + ':' + stage;
-    if (b.done) { DATA.wordReview[k] = date; star('review:' + k, 1, date, `复习 Day ${day}（${REVIEW_NAMES[stage]}）`); }
+    if (b.done) { DATA.wordReview[k] = date; star('review:' + k, 1, date, `复习 Day ${day}（${REVIEW_NAMES[stage]}）`); syncReview(date); }
     else { delete DATA.wordReview[k]; unstar('review:' + k); }
     save(); return {ok: true};
   },
@@ -873,7 +894,7 @@ function weekText(w, date) {
 }
 
 /* ---------- 今天：一张总览卡 + 按时段的时间表；全部必做，点任务进对应的学习页 ---------- */
-const GO_TASK = {listen: 'media', word: 'card', ket: 'ket', wenyan: 'wenyan', dict: 'dict'};
+const GO_TASK = {review: 'review', listen: 'media', word: 'card', ket: 'ket', wenyan: 'wenyan', dict: 'dict'};
 async function today() {
   const d = await api('/api/today?date=' + state.date);
   const r = rewardsState(d.date);
@@ -917,7 +938,7 @@ async function today() {
       <span class="tm">${t.flex ? `<span class="no">${t.no}</span>` : t.time}</span>
       <span class="check" data-tick="1">${t.done ? '✓' : ''}</span>
       <span class="lbl">${label}<small>${sub(t)}</small>
-        ${t.type === 'word' && pend.length ? `<small>${pend.map(v => `<span class="pill" data-rv="${v.day}">复习 Day ${v.day}</span>`).join('')}</small>` : ''}</span>
+        ${t.type === 'review' && pend.length ? `<small>${pend.map(v => `<span class="pill" data-rv="${v.day}">复习 Day ${v.day}</span>`).join('')}</small>` : ''}</span>
       ${goTo && !t.done ? '<span class="go">›</span>' : ''}</div>`;
   };
   const rest = z => `<div class="rest"><span class="tm">${z.flex ? '' : z.time}</span><span>☕ 休息 ${z.dur} 分钟，喝水、站起来动一动</span></div>`;
@@ -951,6 +972,7 @@ async function today() {
     else if (g === 'ket') { state.deck = 'ket'; go('words'); }
     else if (g === 'wenyan') { state.wy = d.wenyan.items.length === 1 ? d.wenyan.items[0].idx : null; go('wenyan'); }
     else if (g === 'dict') { state.di = 0; go('dict'); }
+    else if (g === 'review' && pend.length) { state.cardDay = pend[0].day; state.mode = 'zh'; state.deck = 'pet'; go('words'); }
   };
   $$('[data-rv]').forEach(el => el.onclick = e => { e.stopPropagation(); state.cardDay = +el.dataset.rv; state.mode = 'zh'; state.deck = 'pet'; go('words'); });
   $$('[data-task]').forEach(el => el.onclick = async e => {
@@ -963,6 +985,7 @@ async function toggleTask(task, on, type) {
     const before = rewardsState(state.date).daily.unlocked;
     const res = await api('/api/task', {date: state.date, task, done: on, pin});
     if (res.error === 'needdict') { state.view = 'dict'; state.di = 0; render(); scrollTo(0, 0); return res; }
+    if (res.error === 'needreview') { toast('点开要复习的卡自测，都复习完自动打勾'); state.cardDay = res.day; state.mode = 'zh'; state.deck = 'pet'; go('words'); return res; }
     if (res.error === 'needket') { toast('先把 KET 复习过一遍，完成后自动打勾'); state.deck = 'ket'; go('words'); return res; }
     if (res.error === 'needtest') { toast(`先去自测，对 ${PASS} 个就自动打勾`); state.cardDay = res.day; state.mode = 'zh'; state.deck = 'pet'; go('words'); return res; }
     if (res.error === 'needpin') { if (pin !== undefined) return {error: '家长密码不对'}; askPin('补打卡（3 天前的要家长确认）', p => doIt(p)); return {}; }
