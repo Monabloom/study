@@ -265,18 +265,19 @@ const isoWeekday = s => { const w = new Date(s + 'T00:00').getDay(); return w ==
 const diffDays = (a, b) => Math.round((new Date(a + 'T00:00') - new Date(b + 'T00:00')) / 864e5);
 
 /* 固定学习任务（不含任何课程信息），课程从课表同步进来；全部必做，按时长自动排时间表并留出休息 */
-const LABEL = {listen: '英语听力：英文动画', ket: 'KET 复习 20 个', wenyan: '文言文 1 篇', homework: '学校作业', eng: '英语阅读 + ABC Reading', word: '背单词 PET 20 个', math: '数学计算',
-  bedread: '阅读', sport: '户外 / 篮球', ewrite: '英文小作文 3～5 句', dict: '拼写听写', goodsent: '好句积累：抄 2 句、仿写 1 句'};
+const LABEL = {listen: '英语听力 1 篇', ket: 'KET 复习 20 个', wenyan: '文言文 1 篇', homework: '学校作业', eread: '英语阅读 1 篇', abc: 'ABC Reading 1 本', word: '背单词 PET 20 个', math: '数学计算 5 分钟',
+  hwfri: '周六日课的作业', bedread: '语文阅读 20 分钟', sport: '户外 / 篮球', ewrite: '英文小作文 3～5 句', dict: '拼写听写', goodsent: '好句积累：抄 2 句、仿写 1 句'};
 const TYPE = {word: 'word', ket: 'ket', wenyan: 'wenyan', dict: 'dict', review: 'review'};
-const DUR = {review: 10, listen: 15, ket: 10, wenyan: 10, homework: 40, eng: 30, word: 20, math: 10, bedread: 20, sport: 60, ewrite: 15, dict: 10, goodsent: 15};   // 分钟（11/18 家长定）
-/* 晚上（家长定，不写时间只按顺序列）：作业 → 英语阅读+ABC 30 → 休 15 → 单词 20 + KET 10 → 休 10 → 数学/文言文隔天 10 → 21:50 阅读 → 22:10 睡；[任务, 做完后休息分钟] */
-const EVENING = [['homework', 0], ['eng', 15], ['word', 0], ['ket', 10], ['math', 0]];
-const DROP = ['math', 'wenyan', 'eng', 'ket', 'review'];
+const DUR = {review: 10, listen: 10, ket: 10, wenyan: 10, homework: 50, eread: 15, abc: 10, hwfri: 60, word: 20, math: 5, bedread: 20, sport: 60, ewrite: 15, dict: 10, goodsent: 15};   // 分钟（11/18 家长定）
+/* 晚上（11/19 家长定，不写时间只按顺序列）：作业 → 英语阅读 1 篇 → 英语听力 1 篇 → ABC（周一到五 1 本、周末 2 本）→ 休 10 → PET 20 + KET 20（+到期旧卡）→ 数学计算 5 分钟 → 21:50 语文阅读 20 → 22:10 睡
+   周五：先做周六日课的作业，再背单词，其余不排；[任务, 做完后休息分钟] */
+const EVENING = [['homework', 0], ['eread', 0], ['listen', 0], ['abc', 10], ['word', 0], ['ket', 0], ['math', 0]];
+const FRIDAY = [['hwfri', 10], ['word', 0], ['ket', 0]];
+const DROP = ['abc', 'listen', 'eread', 'math', 'review', 'ket'];   // 有晚课排不下时依次挪掉（晚课都是英语外教，先挪英语项）
 const WEEKEND_EXTRA = ['sport', 'ewrite', 'dict', 'goodsent'];   // 周末加的几项：照常列出、单独给星星，不算进当天奖励
 const LUNCH = ['12:00', '13:30'];   // 有课排不下时依次挪掉（当天不出现）
-const MORNING_TASKS = ['listen'];   // 早上：英语听力（看英文动画）
-const rotSlot = date => ((diffDays(date, '2026-11-18') % 2) + 2) % 2 === 0 ? 'math' : 'wenyan';   // 数学、文言文隔天轮换（11/18 起数学先）
-const EVE_FROM = '19:35', BED_READ = '21:50', BED = '22:10';
+const MORNING_TASKS = [];   // 11/19 起英语听力挪到晚上，早上不排
+const EVE_FROM = '19:35', SCHOOL_FROM = '18:40', BED_READ = '21:50', BED = '22:10';
 const MORNING = {school: '07:30', sat: '08:30', sun: '08:30', rest: '09:00'};
 const t2m = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 const m2t = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
@@ -378,14 +379,18 @@ function planFor(date) {
     return {id: 'c' + k, label, time: time || '', end: en === null ? '' : m2t(en), type: 'class', s: st, e: en};
   });
   const blocks = cls.filter(c => c.s !== null).sort((a, b) => a.s - b.s);
-  const mk = (id, a, b, parts) => ({id, label: id === 'review' ? `复习旧单词卡 ${reviewsDue(date).length} 张` : LABEL[id], time: m2t(a), end: m2t(b), dur: parts ? parts.reduce((n, [x, y]) => n + y - x, 0) : b - a, type: TYPE[id] || '', parts: parts && parts.length > 1 ? parts.map(([x, y]) => m2t(x) + '–' + m2t(y)) : null});
+  const mk = (id, a, b, parts) => ({id, label: id === 'review' ? `复习旧单词卡 ${reviewsDue(date).length} 张` : id === 'abc' && kind !== 'school' ? 'ABC Reading 2 本' : LABEL[id], time: m2t(a), end: m2t(b), dur: parts ? parts.reduce((n, [x, y]) => n + y - x, 0) : b - a, type: TYPE[id] || '', parts: parts && parts.length > 1 ? parts.map(([x, y]) => m2t(x) + '–' + m2t(y)) : null});
   const tasks = [], rests = [];
   let ms = t2m(MORNING[kind]); MORNING_TASKS.forEach(id => { tasks.push(mk(id, ms, ms + DUR[id])); ms += DUR[id]; });
   DUR.review = Math.max(5, 5 * reviewsDue(date).length);
-  let eve = EVENING.map(c => c[0] === 'math' ? [rotSlot(date), c[1]] : c);
+  DUR.abc = kind === 'school' ? 10 : 20;
+  DUR.homework = kind === 'school' ? 50 : 40;   // 上学日 18:40 起按 50 分钟；周末白天按 40 分钟找空档
+  const fri = isoWeekday(date) === 5;
+  const weekendClass = [1, 2].some(n => ((CFG.sched[addDays(date, n)] || {}).c || []).some(c => /高思/.test(c[0])));
+  let eve = fri ? FRIDAY.filter(c => c[0] !== 'hwfri' || weekendClass) : EVENING.slice();
   const nRev = reviewsDue(date).length;   // 到期的旧单词卡（记忆曲线），每张约 5 分钟
   if (nRev) { const k = eve.findIndex(c => c[0] === 'ket'); eve.splice(k, 1, ['ket', 0], ['review', eve[k][1]]); }
-  if (kind !== 'school') {   // 周末 / 假日：学校作业放白天第一个整块空档，晚上不再排
+  if (kind !== 'school' && !fri) {   // 周末 / 假日：学校作业放白天第一个整块空档，晚上不再排
     const busy = blocks.concat([{s: t2m(LUNCH[0]), e: t2m(LUNCH[1])}]).sort((a, b) => a.s - b.s);
     let t = ms + 10;
     for (let b; (b = busy.find(b => b.e > t)) && b.s - t < DUR.homework;) t = b.e + 10;
@@ -395,9 +400,9 @@ function planFor(date) {
     const r = packDrop(aft, t2m('15:00'), t2m('18:20'), (hw ? blocks.concat([hw]) : blocks.slice()).sort((a, b) => a.s - b.s), []);
     r.out.forEach(x => tasks.push(mk(x.id, x.s, x.e))); rests.push(...r.rests);
   }
-  const r = seqDrop(eve, t2m(EVE_FROM), t2m(BED_READ), blocks);
-  r.out.forEach(x => tasks.push({...mk(x.id, x.s, x.e, x.parts), flex: true})); rests.push(...r.rests.map(z => ({...z, flex: true})));   // 晚上不写时间，按顺序做
-  tasks.push({...mk('bedread', t2m(BED_READ), t2m(BED)), flex: true});
+  // 晚上（11/19 家长定）：只按顺序列任务，不排时间、不按课挪项、不插休息，时间家长自己安排；time 只用来排序和归到"晚上"组
+  const eveIds = eve.map(c => c[0]).concat(fri ? [] : ['bedread']);   // 周五只做周末课作业 + 背单词
+  eveIds.forEach((id, i) => tasks.push({...mk(id, t2m('18:00') + i, t2m('18:00') + i), flex: true}));
   return {tasks: tasks.concat(cls).sort((a, b) => (a.time || '99').localeCompare(b.time || '99')), rests: rests.map(x => ({time: m2t(x.s), dur: x.d, flex: !!x.flex}))};
 }
 function tasksFor(date) {
@@ -924,7 +929,7 @@ async function today() {
   const pend = d.reviews.filter(v => !v.done);
   const sub = t => {
     if (t.type === 'class') return t.end ? `${t.time}–${t.end}` : '';
-    const bits = [t.parts ? (t.flex ? `${t.dur} 分钟 · 上课前先写，下课接着写` : `${t.dur} 分钟，分两段：${t.parts.join('，下课后 ')}`) : `${t.dur} 分钟`];
+    const bits = t.flex ? [] : [t.parts ? `${t.dur} 分钟，分两段：${t.parts.join('，下课后 ')}` : `${t.dur} 分钟`];   // 晚上不写时间/时长
     if (t.id === 'listen' && !t.done) bits.push('选一集英文动画，看完说一句');
     if (t.type === 'word' && c.day) bits.push(`Day ${c.day} · ${esc(c.topics)}`);
     if (t.type === 'ket') { const ks = ketSession(d.date); if (ks.day) bits.push(`Day ${ks.day}${ks.due.length ? ` + ${ks.due.length} 个生词` : ''}`); }
