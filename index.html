@@ -222,6 +222,204 @@ input,textarea{font:inherit;font-size:16px;padding:11px 13px;border-radius:13px;
 .tag.cls{background:var(--gold-soft);color:var(--warn);margin-right:6px}
 .tag.ok{background:var(--ok-soft);color:var(--ok);margin-right:6px}
 [hidden]{display:none!important}
+
+/* ---------- 灵动版（11/19）：渐变总览卡、任务彩色图标、进场动画、打勾弹跳、导航胶囊 ---------- */
+.hero-card{position:relative;overflow:hidden;color:#fff;background:linear-gradient(135deg,#5b5bd6 0%,#7c6cf3 55%,#a98bff 100%);box-shadow:0 10px 30px rgba(91,91,214,.28)}
+.hero-card:before,.hero-card:after{content:'';position:absolute;border-radius:50%;background:rgba(255,255,255,.12);pointer-events:none}
+.hero-card:before{width:180px;height:180px;right:-60px;top:-70px;animation:drift 9s ease-in-out infinite}
+.hero-card:after{width:110px;height:110px;left:-40px;bottom:-50px;animation:drift 11s ease-in-out infinite reverse}
+.hero-card>*{position:relative}
+.hero-card h2{color:#fff;font-size:19px}
+.hero-card .sub,.hero-card .next{color:rgba(255,255,255,.85)}
+.hero-card .next b{color:#fff}
+.hero-card .ring circle{stroke:rgba(255,255,255,.22)}
+.hero-card .ring circle+circle{stroke:#fff}
+.hero-card .ring .num span{color:rgba(255,255,255,.8)}
+.hero-card .wk{border-top-color:rgba(255,255,255,.2)}
+.hero-card .wk i{border-color:rgba(255,255,255,.45);color:#fff}
+.hero-card .wk i.full{background:#fff;border-color:#fff;color:var(--ok)}
+.hero-card .wk i.miss{background:rgba(255,255,255,.18);border-color:transparent;color:#ffe2c4}
+.hero-card .wk i.today{background:#fff;border-color:#fff;color:#5b5bd6;box-shadow:0 0 0 4px rgba(255,255,255,.25)}
+.hero-card .wk span{color:rgba(255,255,255,.88)}
+.hero-card .btn{background:#fff;color:#5b5bd6}
+.ico{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-size:19px;flex:none;background:var(--c,var(--pri-soft));transition:transform .25s}
+.task.done .ico{filter:grayscale(.6);opacity:.7}
+.task:active .ico{transform:scale(.9) rotate(-6deg)}
+.task{transition:background .2s,transform .15s}
+.task:active{transform:scale(.985)}
+.btn,.tile,.chip,.pill{transition:transform .15s}
+.btn:active,.tile:active,.pill:active{transform:scale(.96)}
+.grp .task.now{background:var(--pri-soft);box-shadow:inset 3px 0 0 var(--pri)}
+.check.pop{animation:pop .5s cubic-bezier(.3,1.6,.5,1)}
+.check.pop:after{content:'';position:absolute;inset:-2px;border-radius:50%;border:2px solid var(--ok);animation:ripple .6s ease-out forwards}
+.check{position:relative}
+nav button svg{padding:3px 14px;width:52px;height:30px;border-radius:12px;transition:background .25s,transform .25s}
+nav button.on svg{background:var(--pri-soft);animation:hop .45s cubic-bezier(.3,1.6,.5,1)}
+.enter>*{animation:up .5s cubic-bezier(.2,.8,.2,1) both}
+.enter>*:nth-child(2){animation-delay:.05s}.enter>*:nth-child(3){animation-delay:.1s}.enter>*:nth-child(4){animation-delay:.15s}
+.enter>*:nth-child(5){animation-delay:.2s}.enter>*:nth-child(n+6){animation-delay:.25s}
+.enter .grp .task{animation:up .45s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0) * 40ms + .15s)}
+@keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes pop{0%{transform:scale(.5)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+@keyframes ripple{from{transform:scale(1);opacity:.8}to{transform:scale(2.2);opacity:0}}
+@keyframes hop{0%{transform:translateY(0)}40%{transform:translateY(-4px)}100%{transform:none}}
+@keyframes drift{0%,100%{transform:translate(0,0)}50%{transform:translate(-14px,12px)}}
+@media (prefers-color-scheme:dark){.ico{background:color-mix(in srgb,var(--c) 14%,var(--card))}.hero-card{box-shadow:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* 任务方块（11/19，参照文言文 tile） */
+.tts{display:grid;grid-template-columns:1fr;gap:10px;padding:2px 0 10px}
+.tt{position:relative;background:var(--bg);border-radius:18px;padding:14px;display:flex;align-items:center;gap:14px;cursor:pointer;user-select:none;transition:transform .15s,background .2s,box-shadow .2s}
+.tt-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.tt:active{transform:scale(.97)}
+.tt b{font-size:16px;line-height:1.3}
+.tt small{font-size:12px;color:var(--faint);line-height:1.35}
+.tt .act{padding-top:2px;font-size:13px;font-weight:700;color:var(--pri)}
+.tt .okt{color:var(--ok);font-style:normal}
+.tt-top{display:flex;justify-content:space-between;align-items:flex-start}
+.tico{position:relative;width:46px;height:46px;border-radius:15px;display:grid;place-items:center;font-size:26px;background:var(--c);transition:transform .25s}
+.tico i{position:absolute;left:-5px;top:-5px;min-width:19px;height:19px;padding:0 4px;border-radius:10px;background:var(--card);color:var(--sub);font:700 11px/19px -apple-system,"PingFang SC",sans-serif;font-style:normal;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.tt .check{width:30px;height:30px;background:var(--card)}
+.tt.done .check{background:var(--ok);border-color:var(--ok)}
+.tt.now{background:var(--pri-soft);box-shadow:inset 0 0 0 2px var(--pri)}
+.tt.now .tico i{background:var(--pri);color:#fff}
+.tt.now .tico{animation:wiggle 2.4s ease-in-out infinite}
+.tt.done{background:var(--ok-soft)}
+.tt.done b{color:var(--sub)}
+.tt.done .tico{filter:saturate(.5)}
+.tt.cls{background:var(--gold-soft)}
+.tt:active .tico{transform:scale(.9) rotate(-8deg)}
+.tt-rest{grid-column:1/-1;padding:0 4px}
+.enter .tts .tt{animation:up .45s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0) * 45ms + .15s)}
+@keyframes wiggle{0%,80%,100%{transform:rotate(0)}85%{transform:rotate(-10deg)}90%{transform:rotate(9deg)}95%{transform:rotate(-5deg)}}
+@media (prefers-color-scheme:dark){.tico{background:color-mix(in srgb,var(--c) 16%,var(--card))}}
+@media (prefers-reduced-motion:reduce){.tt,.tico{animation:none!important}}
+
+/* 奖励页（11/19 灵动版） */
+.opts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.opt{border:0;border-radius:16px;padding:12px 6px 10px;background:var(--bg);color:var(--ink);font:inherit;font-size:12.5px;font-weight:700;line-height:1.3;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;transition:transform .15s}
+.opt .oi{font-size:30px;line-height:1}
+.opt:disabled{opacity:.55;cursor:default}
+.opt:active:not(:disabled){transform:scale(.93)}
+.rw.on .opt{background:rgba(255,255,255,.2);color:#fff}
+.opt.ready{opacity:1}
+.opt.ready .oi{animation:bob 1.6s ease-in-out infinite;animation-delay:var(--d)}
+.rw.on .opt.ready{background:#fff;color:var(--pri);box-shadow:0 6px 16px rgba(0,0,0,.12)}
+.wkm{display:flex;justify-content:space-between;margin-top:12px}
+.wkm div{width:52px;text-align:center;font-size:12px;color:var(--faint);font-weight:600}
+.wkm i{width:46px;height:46px;border-radius:15px;margin:0 auto 5px;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:14px;background:var(--bg);color:var(--faint)}
+.wkm .full i{background:linear-gradient(135deg,#3cc7a0,var(--ok));color:#fff;animation:pop .5s cubic-bezier(.3,1.6,.5,1) both}
+.wkm .today i{box-shadow:inset 0 0 0 2px var(--pri);color:var(--pri)}
+.wkm .miss i{background:var(--warn-soft);color:var(--warn)}
+.rw.on .wkm div{color:rgba(255,255,255,.85)}
+.rw.on .wkm i{background:rgba(255,255,255,.18);color:#fff}
+.rw.on .wkm .full i{background:#fff;color:var(--ok)}
+.rw.on .bar{background:rgba(255,255,255,.25)}.rw.on .bar>i{background:#fff}
+.hero-card .wk span b{color:#fff}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px) rotate(-4deg)}}
+
+.mins{display:inline-flex;align-items:center;gap:4px;margin-top:6px;align-self:flex-start;font-size:12px;color:var(--sub);background:var(--card);border-radius:10px;padding:3px 8px;cursor:text}
+.mins input{width:44px;border:0;background:transparent;font:700 16px/1.2 -apple-system,"PingFang SC",sans-serif;color:var(--pri);text-align:center;padding:2px 0;-moz-appearance:textfield}
+.mins input::-webkit-outer-spin-button,.mins input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.mins input:focus{outline:none;border-bottom:2px solid var(--pri)}
+.tt.now .mins,.tt.done .mins{background:rgba(255,255,255,.75)}
+
+/* 家长看板（11/19 美化） */
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.chips span{font-size:12.5px;padding:5px 10px;border-radius:99px;background:rgba(255,255,255,.2);color:#fff}
+.pstat{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.pstat div{border-radius:14px;padding:10px 4px;text-align:center;font-size:11.5px;color:var(--sub);background:var(--bg);line-height:1.35}
+.pstat b{display:block;font-size:20px;font-weight:800;color:var(--ink);margin-bottom:2px}
+.hero-card .pstat div{background:rgba(255,255,255,.16);color:rgba(255,255,255,.85)}
+.hero-card .pstat b{color:#fff}
+.card .pstat:has(div:nth-child(3):last-child){grid-template-columns:repeat(3,1fr)}
+.dbar{display:flex;align-items:flex-end;justify-content:space-between;height:120px;gap:8px;margin-top:14px}
+.dbar div{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;font-size:11px;color:var(--faint);gap:3px}
+.dbar i{width:100%;max-width:30px;border-radius:9px 9px 4px 4px;background:linear-gradient(to top,var(--pri),var(--pri2));animation:grow .6s cubic-bezier(.2,.8,.2,1) both;transform-origin:bottom}
+.dbar b{font-size:11px;color:var(--sub)}
+.hb{display:flex;align-items:center;gap:10px;margin-top:9px;font-size:13px}
+.hb span{width:112px;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--sub)}
+.hb div{flex:1;height:10px;border-radius:99px;background:var(--bg);overflow:hidden}
+.hb i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#3cc7a0,var(--ok));animation:grow-x .7s cubic-bezier(.2,.8,.2,1) both;transform-origin:left}
+.hb b{width:28px;text-align:right;font-size:13px}
+@keyframes grow{from{transform:scaleY(0)}}
+@keyframes grow-x{from{transform:scaleX(0)}}
+
+/* 单词页（11/19 灵动版） */
+.wd-hero.pet{background:linear-gradient(135deg,#ff7aa8 0%,#a66bff 60%,#6f6cf0 100%);box-shadow:0 10px 30px rgba(166,107,255,.28)}
+.wd-hero.ket{background:linear-gradient(135deg,#ffb36b 0%,#ff7f96 55%,#a66bff 100%);box-shadow:0 10px 30px rgba(255,127,150,.25)}
+.wd-h{color:#fff;margin:4px 0 0}
+.wd-pet{font-size:46px;line-height:1;animation:bob 2.2s ease-in-out infinite}
+.wd-hero .tag{background:rgba(255,255,255,.22);color:#fff}
+.rvd{font-size:12px;padding:3px 8px;border-radius:99px;background:rgba(255,255,255,.12);color:rgba(255,255,255,.75)}
+.rvd.on{background:#fff;color:#a66bff;font-weight:700}
+.wd-bar{margin-top:6px;background:rgba(255,255,255,.25)!important}.wd-bar>i{background:#fff!important}
+.wrow{background:var(--bg);border-radius:16px;padding:12px;margin:8px 0;transition:background .25s,transform .15s}
+.wrow+.wrow{border-top:0}
+.wrow .n{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--card);text-align:center;font-weight:700}
+.wrow.ok{background:var(--ok-soft)}
+.wrow.no{background:var(--warn-soft)}
+.wrow.just.ok{animation:okflash .6s ease-out}
+.wrow.just.no{animation:shake .45s ease-in-out}
+.say{transition:transform .15s,background .2s}
+.say:active{transform:scale(.88)}
+.say.playing{animation:pulse 1s ease-in-out infinite}
+.grid button{transition:transform .15s}
+.grid button:active{transform:scale(.9)}
+.grid button.cur{animation:hop .45s cubic-bezier(.3,1.6,.5,1)}
+@keyframes okflash{0%{transform:scale(.97);box-shadow:0 0 0 0 rgba(22,163,110,.45)}60%{transform:scale(1.015);box-shadow:0 0 0 8px rgba(22,163,110,0)}100%{transform:none}}
+@keyframes shake{0%,100%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(91,91,214,.35)}50%{box-shadow:0 0 0 7px rgba(91,91,214,0)}}
+.wrow.kr{gap:8px}.wrow.kr .en{flex:1.3}.wrow.kr .en b{font-size:17px;overflow-wrap:normal;word-break:keep-all}.wrow.kr .say{width:34px;height:34px;font-size:15px}.wrow.kr .row{gap:4px!important}
+.wrow .zh .mask{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* 奖励 / 家长页酷炫版（11/19） */
+.lvcard{position:relative;overflow:hidden;background:linear-gradient(120deg,#5b5bd6,#8b5cf6,#ec4899,#8b5cf6,#5b5bd6);background-size:300% 100%;animation:flow 8s ease-in-out infinite;box-shadow:0 12px 32px rgba(139,92,246,.35)}
+.lvcard:after{content:'✦ ✧ ✦';position:absolute;right:16px;bottom:10px;font-size:14px;letter-spacing:8px;color:rgba(255,255,255,.55);animation:twinkle 2.4s ease-in-out infinite}
+.lvcard .ic{animation:bob 2.4s ease-in-out infinite}
+.lvbar i,.rw .bar>i,.wd-bar>i{position:relative;overflow:hidden}
+.lvbar i:after,.rw.on .bar>i:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent);transform:translateX(-100%);animation:sweep 2.2s ease-in-out infinite}
+.rw{position:relative;overflow:hidden}
+.rw:before{content:'';position:absolute;left:0;top:0;right:0;height:4px;background:var(--rg)}
+.rw:after{content:var(--wm);position:absolute;right:-6px;top:34px;font-size:84px;opacity:.08;transform:rotate(-12deg);pointer-events:none}
+.rw>*{position:relative;z-index:1}
+.rw-d{--rg:linear-gradient(90deg,#6366f1,#a855f7);--wm:'🎮'}
+.rw-w{--rg:linear-gradient(90deg,#10b981,#06b6d4);--wm:'🏖️'}
+.rw-g{--rg:linear-gradient(90deg,#f59e0b,#ef4444,#ec4899);--wm:'👑'}
+.rw-d .tag{background:#eef0ff;color:#6366f1}.rw-w .tag{background:#e6f8f3;color:#0e9f75}.rw-g .tag{background:#fff3e0;color:#e0780b}
+.rw-w .big{background:linear-gradient(90deg,#0e9f75,#0891b2);-webkit-background-clip:text;background-clip:text;color:transparent}
+.rw-g .big{background:linear-gradient(90deg,#f59e0b,#ef4444,#ec4899);-webkit-background-clip:text;background-clip:text;color:transparent}
+.rw.on .big{color:#fff;-webkit-text-fill-color:#fff;background:none}
+.rw.on:after{opacity:.16}
+.rw-d.on{background:linear-gradient(135deg,#6366f1,#a855f7);box-shadow:0 12px 30px rgba(124,58,237,.35)}
+.rw-w.on{background:linear-gradient(135deg,#10b981,#06b6d4);box-shadow:0 12px 30px rgba(16,185,129,.35)}
+.rw-g.on{background:linear-gradient(135deg,#f59e0b,#ef4444 55%,#ec4899);box-shadow:0 12px 30px rgba(239,68,68,.35)}
+.rw.on{animation:glow 2.6s ease-in-out infinite}
+.rw-g .charge>i{background:linear-gradient(90deg,#f59e0b,#ef4444,#ec4899)}
+.charge:not(.full)>i{background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.22) 0 10px,transparent 10px 20px),linear-gradient(90deg,#3cc7a0,var(--ok));background-size:28px 28px,100% 100%;animation:stripes 1s linear infinite}
+.rw-g .charge:not(.full)>i{background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,.22) 0 10px,transparent 10px 20px),linear-gradient(90deg,#f59e0b,#ef4444,#ec4899)}
+.badge:not(.off) .bi{background:linear-gradient(135deg,#fff3c4,#ffd36b);box-shadow:0 6px 14px rgba(245,158,11,.3);position:relative;overflow:hidden}
+.badge:not(.off) .bi:after{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.8) 50%,transparent 70%);transform:translateX(-120%);animation:sweep 3s ease-in-out infinite}
+.hero-card{background-size:200% 200%;animation:flow 10s ease-in-out infinite}
+.d7 i.full{background:linear-gradient(135deg,#3cc7a0,var(--ok));box-shadow:0 4px 10px rgba(22,163,110,.3)}
+.pstat div{transition:transform .2s}.pstat div:active{transform:scale(.95)}
+.card h2{display:flex;align-items:center;gap:6px}
+@keyframes flow{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+@keyframes sweep{0%{transform:translateX(-120%)}60%,100%{transform:translateX(120%)}}
+@keyframes twinkle{0%,100%{opacity:.25}50%{opacity:.9}}
+@keyframes stripes{to{background-position:28px 0,0 0}}
+@keyframes glow{0%,100%{filter:brightness(1)}50%{filter:brightness(1.08)}}
+@media (prefers-color-scheme:dark){.rw-d .tag,.rw-w .tag,.rw-g .tag{background:rgba(255,255,255,.08)}}
+
+.rw-w .bar>i{background:linear-gradient(90deg,#10b981,#06b6d4)}.rw-w.on .bar>i{background:#fff}
+[data-view=parent] .card:not(.hero-card){position:relative;overflow:hidden}
+[data-view=parent] .card:not(.hero-card):before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,#6366f1,#ec4899)}
+[data-view=parent] .card:nth-of-type(3n+2):not(.hero-card):before{background:linear-gradient(180deg,#10b981,#06b6d4)}
+[data-view=parent] .card:nth-of-type(3n):not(.hero-card):before{background:linear-gradient(180deg,#f59e0b,#ef4444)}
+[data-view=parent] .pstat div{background:linear-gradient(160deg,var(--bg),var(--card))}
+[data-view=parent] .hero-card .pstat div{background:rgba(255,255,255,.16)}
+[data-view=parent] .bar>i{position:relative;overflow:hidden}
+[data-view=parent] .bar>i:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);transform:translateX(-100%);animation:sweep 2.6s ease-in-out infinite}
 </style>
 </head>
 <body>
@@ -265,13 +463,13 @@ const isoWeekday = s => { const w = new Date(s + 'T00:00').getDay(); return w ==
 const diffDays = (a, b) => Math.round((new Date(a + 'T00:00') - new Date(b + 'T00:00')) / 864e5);
 
 /* 固定学习任务（不含任何课程信息），课程从课表同步进来；全部必做，按时长自动排时间表并留出休息 */
-const LABEL = {listen: '英语听力 1 篇', ket: 'KET 复习 20 个', wenyan: '文言文 1 篇', homework: '学校作业', eread: '英语阅读 1 篇', abc: 'ABC Reading 1 本', word: '背单词 PET 20 个', math: '数学计算 5 分钟',
-  hwfri: '周六日课的作业', bedread: '语文阅读 20 分钟', sport: '户外 / 篮球', ewrite: '英文小作文 3～5 句', dict: '拼写听写', goodsent: '好句积累：抄 2 句、仿写 1 句'};
+const LABEL = {listen: '英语听力 1 篇', ket: 'KET 单词复习 20 个', wenyan: '文言文背诵 1 篇', homework: '学校作业', eread: '英语阅读 1 篇', abc: 'ABC Reading 1 篇', word: 'PET 单词 20 个', math: '数学计算 2 页',
+  hwfri: '周六日课的作业', bedread: '阅读 20 分钟', sport: '户外 / 篮球', ewrite: '英文小作文 3～5 句', dict: '拼写听写', goodsent: '好句积累：抄 2 句、仿写 1 句'};
 const TYPE = {word: 'word', ket: 'ket', wenyan: 'wenyan', dict: 'dict', review: 'review'};
 const DUR = {review: 10, listen: 10, ket: 10, wenyan: 10, homework: 50, eread: 15, abc: 10, hwfri: 60, word: 20, math: 5, bedread: 20, sport: 60, ewrite: 15, dict: 10, goodsent: 15};   // 分钟（11/18 家长定）
 /* 晚上（11/19 家长定，不写时间只按顺序列）：作业 → 英语阅读 1 篇 → 英语听力 1 篇 → ABC（周一到五 1 本、周末 2 本）→ 休 10 → PET 20 + KET 20（+到期旧卡）→ 数学计算 5 分钟 → 21:50 语文阅读 20 → 22:10 睡
    周五：先做周六日课的作业，再背单词，其余不排；[任务, 做完后休息分钟] */
-const EVENING = [['homework', 0], ['eread', 0], ['listen', 0], ['abc', 10], ['word', 0], ['ket', 0], ['math', 0]];
+const EVENING = [['homework', 0], ['eread', 0], ['listen', 0], ['abc', 0], ['math', 0], ['word', 0], ['ket', 0], ['wenyan', 0]];   // 11/19 家长定顺序：作业→英语阅读→听力→ABC→数学计算2页→PET→KET(→旧卡)→文言文背诵→阅读
 const FRIDAY = [['hwfri', 10], ['word', 0], ['ket', 0]];
 const DROP = ['abc', 'listen', 'eread', 'math', 'review', 'ket'];   // 有晚课排不下时依次挪掉（晚课都是英语外教，先挪英语项）
 const WEEKEND_EXTRA = ['sport', 'ewrite', 'dict', 'goodsent'];   // 周末加的几项：照常列出、单独给星星，不算进当天奖励
@@ -372,21 +570,21 @@ function packDrop(ids, from, to, blocks, drop) {
   return r;
 }
 function planFor(date) {
-  if (!CFG || !CFG.sched) return {tasks: [], rests: []};
-  const s = CFG.sched[date] || {}, kind = dayKind(date);
+  if (!CFG) return {tasks: [], rests: []};   // 没有课表（旧设置链接）也按新任务清单排，只是不显示课
+  const SCH = CFG.sched || {}, s = SCH[date] || {}, kind = dayKind(date);
   const cls = (s.c || []).map(([label, time, end], k) => {
     const st = time ? t2m(time) : null, en = st === null ? null : end ? t2m(end) : st + classDur(label);
     return {id: 'c' + k, label, time: time || '', end: en === null ? '' : m2t(en), type: 'class', s: st, e: en};
   });
   const blocks = cls.filter(c => c.s !== null).sort((a, b) => a.s - b.s);
-  const mk = (id, a, b, parts) => ({id, label: id === 'review' ? `复习旧单词卡 ${reviewsDue(date).length} 张` : id === 'abc' && kind !== 'school' ? 'ABC Reading 2 本' : LABEL[id], time: m2t(a), end: m2t(b), dur: parts ? parts.reduce((n, [x, y]) => n + y - x, 0) : b - a, type: TYPE[id] || '', parts: parts && parts.length > 1 ? parts.map(([x, y]) => m2t(x) + '–' + m2t(y)) : null});
+  const mk = (id, a, b, parts) => ({id, label: id === 'review' ? `复习旧单词卡 ${reviewsDue(date).length} 张` : id === 'abc' && kind !== 'school' ? 'ABC Reading 2 篇' : LABEL[id], time: m2t(a), end: m2t(b), dur: parts ? parts.reduce((n, [x, y]) => n + y - x, 0) : b - a, type: TYPE[id] || '', parts: parts && parts.length > 1 ? parts.map(([x, y]) => m2t(x) + '–' + m2t(y)) : null});
   const tasks = [], rests = [];
   let ms = t2m(MORNING[kind]); MORNING_TASKS.forEach(id => { tasks.push(mk(id, ms, ms + DUR[id])); ms += DUR[id]; });
   DUR.review = Math.max(5, 5 * reviewsDue(date).length);
   DUR.abc = kind === 'school' ? 10 : 20;
   DUR.homework = kind === 'school' ? 50 : 40;   // 上学日 18:40 起按 50 分钟；周末白天按 40 分钟找空档
   const fri = isoWeekday(date) === 5;
-  const weekendClass = [1, 2].some(n => ((CFG.sched[addDays(date, n)] || {}).c || []).some(c => /高思/.test(c[0])));
+  const weekendClass = [1, 2].some(n => ((SCH[addDays(date, n)] || {}).c || []).some(c => /高思/.test(c[0])));
   let eve = fri ? FRIDAY.filter(c => c[0] !== 'hwfri' || weekendClass) : EVENING.slice();
   const nRev = reviewsDue(date).length;   // 到期的旧单词卡（记忆曲线），每张约 5 分钟
   if (nRev) { const k = eve.findIndex(c => c[0] === 'ket'); eve.splice(k, 1, ['ket', 0], ['review', eve[k][1]]); }
@@ -407,10 +605,7 @@ function planFor(date) {
 }
 function tasksFor(date) {
   if (!CFG) return [];
-  if (CFG.sched) return planFor(date).tasks;
-  let lst = (CFG.dates || {})[date];
-  if (!lst) { lst = CFG.weekday[String(isoWeekday(date))]; while (typeof lst === 'string') lst = CFG.weekday[lst]; }
-  return (lst || []).map(t => ({id: t[0], label: t[1], time: t[2], type: t[3] || ''}));
+  return planFor(date).tasks;   // 11/19：旧版 weekday 任务表不再使用
 }
 function star(key, amount, date, note) { DATA.stars[key] = {key, amount, date, note, at: Date.now()}; }
 function unstar(key) { delete DATA.stars[key]; }
@@ -471,7 +666,7 @@ const LOCAL = {
     const date = q.date || todayStr();
     const done = DATA.taskDone[date] || {};
     const lt = learnedOn(date), cur = lt || currentCard(), wk = wenyanWeek(date);
-    return {date, weekday: isoWeekday(date), tasks: tasksFor(date).map(t => ({...t, done: !!done[t.id]})), rests: CFG && CFG.sched ? planFor(date).rests : [],
+    return {date, weekday: isoWeekday(date), tasks: tasksFor(date).map(t => ({...t, done: !!done[t.id]})), rests: CFG ? planFor(date).rests : [],
       card: {day: cur, topics: cur ? CARDS[cur - 1].topics : '', learned_today: !!lt, total: CARDS.length},
       reviews: reviewsDue(date),
       wenyan: {week: wk, items: (wk ? wk.idxs : []).map(i => ({idx: i, t: WENYAN[i].t, checks: wyChecks(i)}))},
@@ -656,8 +851,19 @@ function weekInfo(date) {
   const sat = addDays(mon, 5), sun = addDays(mon, 6);
   const key = 'weekly:' + mon;
   return {mon, days, broken, unlocked, key, claimed: DATA.claims[key] || null,
-    usable: unlocked && date >= sat && date <= sun, fullCount: days.filter(x => x.state === 'full').length,
+    usable: days.some(x => x.state === 'full') && date >= sat && date <= sun, fullCount: days.filter(x => x.state === 'full').length,
+    minutes: days.filter(x => x.state === 'full').length * WEEK_MIN, weekend: date >= sat && date <= sun,
     total: days.filter(x => x.state !== 'skip').length};
+}
+/* 11/19 家长定的奖励：每日三选一（孩子自己选，记录下来）；周一到周五每天全完成攒 15 分钟周末时间；连续 30 天全部完成 = 成长大奖三选一 */
+const DAILY_OPTS = [['trial', '⚔️', '王者荣耀试炼 2 局'], ['rank', '🏆', '王者荣耀排位 1 局'], ['phone', '📱', '手机时间 20 分钟']];
+const BIG_OPTS = [['skin', '👑', '王者荣耀皮肤 1 个'], ['meal', '🍖', '一顿大餐'], ['yh', '🛒', '永辉超市零食购一趟']];
+const WEEK_MIN = 15, MONTH_DAYS = 30;
+function growth(date) {
+  const s = streak(date), end = coreFull(date) ? date : addDays(date, -1), runStart = s ? addDays(end, 1 - s) : null;
+  const items = [...Array(Math.floor(s / MONTH_DAYS))].map((_, k) => ({key: `big:month:${runStart}:${k + 1}`, label: `连续 ${(k + 1) * MONTH_DAYS} 天全部完成`, unlocked: true}));
+  items.forEach(x => x.claimed = DATA.claims[x.key] || null);
+  return {streak: s, prog: s % MONTH_DAYS, need: MONTH_DAYS, items};
 }
 function milestones() {
   const words = Object.keys(DATA.wordLearn).length;
@@ -674,17 +880,18 @@ function rewardsState(date) {
   return {
     daily: {key: dk, unlocked: total > 0 && n === total, remaining: total - n, claimed: DATA.claims[dk] || null, isToday: date === todayStr()},
     weekly: weekInfo(date),
-    big: {...milestones(), name: bigName()},
+    big: growth(date),
   };
 }
 LOCAL['GET /api/rewards'] = q => rewardsState(q.date || todayStr());
 LOCAL['POST /api/claim'] = b => {
-  if (String(b.pin) !== String(pin())) return {error: '家长密码不对'};
   const date = todayStr(), r = rewardsState(date), k = b.key;
+  if (k !== r.daily.key && String(b.pin) !== String(pin())) return {error: '家长密码不对'};   // 每日奖励孩子自己选，不用家长密码
   let ok = false, note = '';
-  if (k === r.daily.key) { ok = r.daily.unlocked; note = '每日奖励：' + (b.choice === 'snack' ? '一份零食' : '20 分钟游戏'); }
-  else if (k === r.weekly.key) { ok = r.weekly.usable; note = '周末 1 小时游戏'; if (r.weekly.unlocked && !r.weekly.usable) return {error: '周六、周日才能用哦'}; }
-  else { const m = r.big.items.find(x => x.key === k); ok = m && m.unlocked; note = '成长大奖：' + bigName() + (m ? '（' + m.label + '）' : ''); }
+  const opt = (list, c) => (list.find(o => o[0] === c) || [])[2];
+  if (k === r.daily.key) { ok = r.daily.unlocked && !!opt(DAILY_OPTS, b.choice); note = '每日奖励：' + opt(DAILY_OPTS, b.choice); }
+  else if (k === r.weekly.key) { ok = r.weekly.usable; note = `周末奖励：多玩 ${r.weekly.minutes} 分钟`; if (!r.weekly.weekend) return {error: '周六、周日才能用哦'}; }
+  else { const m = r.big.items.find(x => x.key === k); ok = m && m.unlocked && !!opt(BIG_OPTS, b.choice); note = '成长大奖：' + opt(BIG_OPTS, b.choice) + (m ? '（' + m.label + '）' : ''); }
   if (!ok) return {error: '还没解锁'};
   if (DATA.claims[k]) return {error: '已经兑现过了'};
   DATA.claims[k] = {date, note, at: Date.now()}; save(); return {ok: true};
@@ -845,7 +1052,7 @@ const WD = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 const todayIso = () => isoOf(new Date());
 const md = s => { const d = new Date(s + 'T00:00'); return `${d.getMonth() + 1}月${d.getDate()}日`; };
-let state = {view: 'today', date: todayIso(), cardDay: null, mode: 'all', wy: null};
+let state = {view: 'today', date: todayIso(), cardDay: null, mode: 'all', wy: null, enter: 1};
 
 function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 1800); }
 function speakQueue(items) {
@@ -856,13 +1063,19 @@ function speakQueue(items) {
 }
 const sayEn = w => speakQueue([[w.replace(/\(.*?\)/g, ''), 'en-GB', .85]]);
 function go(v) {
-  state.view = v;
+  state.view = v; state.enter = 1;
   $$('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   try { speechSynthesis.cancel(); } catch (e) {}
   render(); scrollTo(0, 0);
 }
 $$('nav button').forEach(b => b.onclick = () => { if (b.dataset.v === 'wenyan') state.wy = null; if (b.dataset.v === 'words') state.cardDay = null; if (b.dataset.v === 'today') state.date = todayIso(); go(b.dataset.v); });
-async function render() { await ({today, words, wenyan, rewards, parent, media, dict: dictView})[state.view](); checkMilestones(); }
+async function render() {
+  await ({today, words, wenyan, rewards, parent, media, dict: dictView})[state.view]();
+  app.dataset.view = state.view;
+  $$('.cnt').forEach(el => { const to = +el.dataset.to; if (!to || el.dataset.done) return; el.dataset.done = 1; let n = 0; el.textContent = 0; const st = setInterval(() => { n = Math.min(to, n + Math.ceil(to / 18)); el.textContent = n; if (n >= to) clearInterval(st); }, 35); });
+  if (state.enter) { state.enter = 0; app.classList.remove('enter'); void app.offsetWidth; app.classList.add('enter'); clearTimeout(render._t); render._t = setTimeout(() => app.classList.remove('enter'), 1200); }
+  checkMilestones();
+}
 
 /* 家长密码弹层 */
 function askPin(title, onOk) {
@@ -892,12 +1105,18 @@ function weekDots(w) {
     <div class="bar" style="margin-top:6px"><i style="width:${w.total ? w.fullCount / w.total * 100 : 0}%"></i></div>`;
 }
 function weekText(w, date) {
-  if (w.claimed) return '本周 1 小时游戏已兑现 🎉';
-  if (w.unlocked) return isoWeekday(date) >= 6 ? '周一到周五全部完成！周末 1 小时游戏可以用啦' : '已解锁！周六、周日可以用';
-  if (w.broken) return '本周有一天没完成，下周一重新开始，加油';
-  return '周一到周五每天全部完成，周末多玩 1 小时';
+  if (w.claimed) return `本周 ${w.minutes} 分钟已兑现 🎉`;
+  if (w.weekend) return w.minutes ? `周末到啦！可以多玩 ${w.minutes} 分钟` : '这周没攒到，下周一重新开始，加油';
+  return `周一到周五每天全部完成就 +${WEEK_MIN} 分钟，周六日一起用`;
 }
 
+/* 每项任务实际用时（家长/孩子手动填，分钟），存 DATA.taskMin[日期][任务]，家长看板做分析 */
+function minOf(date, id) { const v = ((DATA.taskMin || {})[date] || {})[id]; return v === undefined ? null : v; }
+function setMin(date, id, v) {
+  DATA.taskMin = DATA.taskMin || {}; const m = DATA.taskMin[date] = DATA.taskMin[date] || {}, n = parseInt(v, 10);
+  if (isNaN(n) || n < 0) delete m[id]; else m[id] = Math.min(n, 600);
+  save();
+}
 /* ---------- 今天：一张总览卡 + 按时段的时间表；全部必做，点任务进对应的学习页 ---------- */
 const GO_TASK = {review: 'review', listen: 'media', word: 'card', ket: 'ket', wenyan: 'wenyan', dict: 'dict'};
 async function today() {
@@ -918,44 +1137,53 @@ async function today() {
     <div class="row" style="gap:8px;margin-top:6px">${holidayName(d.date) ? `<span class="tag" style="background:var(--warn-soft);color:var(--warn)">${esc(holidayName(d.date))}</span>` : ''}
       <button class="link" id="prev">‹ 前一天</button>${isToday ? '' : '<button class="link" id="next">后一天 ›</button><button class="link" id="tod" style="color:var(--pri)">回到今天</button>'}</div>
     ${backupDue() ? '<div class="warn" style="margin-top:12px">💾 超过 7 天没备份了，请家长到「家长」页点「导出备份」</div>' : ''}
-    <div class="card"><div class="hero">${ring(cDone, cTotal)}
+    <div class="card hero-card"><div class="hero">${ring(cDone, cTotal)}
       <div style="flex:1;min-width:0"><h2>${cDone === cTotal ? '今天全部完成！' : `还差 ${cTotal - cDone} 项`}</h2>
-      <div class="sub" style="margin-top:2px">${dl.claimed ? '今日奖励已兑现 ✅' : dl.unlocked ? (isToday ? '🎮 已解锁：零食 或 20 分钟游戏' : '这天已完成') : '全部完成：零食 或 20 分钟游戏'}</div>
-      ${nextT && cDone < cTotal ? `<div class="next" data-jump="${nextT.id}">接下来 <b>${nextT.flex ? '' : nextT.time + ' '}${esc(nextT.label)}</b></div>` : ''}
+      <div class="sub" style="margin-top:2px">${dl.claimed ? '今日奖励已兑现 ✅' : dl.unlocked ? (isToday ? '🎮 已解锁：去奖励页三选一' : '这天已完成') : '全部完成：⚔️试炼2局 / 🏆排位1局 / 📱手机20分钟'}</div>
+      ${nextT && cDone < cTotal ? `<div class="next" data-jump="${nextT.id}">接下来 <b>${esc(nextT.label)}</b></div>` : ''}
       ${dl.unlocked && !dl.claimed && isToday ? '<button class="btn sm" id="claimDaily" style="margin-top:8px">去选奖励</button>' : ''}</div></div>
       <div class="wk" id="openWeek">${w.days.map(z => `<i class="${z.state}">${z.state === 'full' ? '✓' : z.label}</i>`).join('')}
-        <span>${w.claimed ? '周末 1 小时已兑现' : w.unlocked ? '周末 1 小时已解锁 🎉' : w.broken ? '本周断了，下周一再来' : '满 5 天，周末多玩 1 小时'}</span></div></div>`;
+        <span>${w.claimed ? `本周 ${w.minutes} 分钟已兑现` : `周末已攒 <b>${w.minutes}</b> 分钟 · 每天 +${WEEK_MIN}`}</span></div></div>`;
 
   const pend = d.reviews.filter(v => !v.done);
   const sub = t => {
-    if (t.type === 'class') return t.end ? `${t.time}–${t.end}` : '';
-    const bits = t.flex ? [] : [t.parts ? `${t.dur} 分钟，分两段：${t.parts.join('，下课后 ')}` : `${t.dur} 分钟`];   // 晚上不写时间/时长
+    if (t.type === 'class') return '';   // 任务里一律不写时间（11/19 家长定）
+    const bits = [];   // 任务里不写时间/时长（11/19 家长定）
     if (t.id === 'listen' && !t.done) bits.push('选一集英文动画，看完说一句');
     if (t.type === 'word' && c.day) bits.push(`Day ${c.day} · ${esc(c.topics)}`);
     if (t.type === 'ket') { const ks = ketSession(d.date); if (ks.day) bits.push(`Day ${ks.day}${ks.due.length ? ` + ${ks.due.length} 个生词` : ''}`); }
     if (t.id === 'wenyan' && d.wenyan.week) bits.push(esc(d.wenyan.week.label));
     return bits.join(' · ');
   };
+  /* 任务做成方块（参照文言文板块）；图标用小动物等更有趣的（PET=小狗、KET=小猫 谐音） */
+  const ICO = {homework: ['🎒', '#fff1e6'], hwfri: ['🎒', '#fff1e6'], eread: ['🦉', '#e8f3ff'], listen: ['🦜', '#eaf8ee'], abc: ['🐝', '#fff8d9'], word: ['🐶', '#ffeef3'],
+    ket: ['🐱', '#eef1ff'], review: ['🃏', '#fff7e0'], math: ['🧮', '#e6f7fb'], bedread: ['🌙', '#f0ebff'], wenyan: ['🐉', '#f6efe4'], sport: ['🏀', '#fff0e3'],
+    ewrite: ['🖍️', '#eef6ff'], dict: ['🎤', '#f3ecff'], goodsent: ['💎', '#e6f7fb']};
+  let ri = 0;
   const row = t => {
-    const label = t.type === 'class' ? `<span class="tag cls">课</span>${esc(t.label)}` : esc(t.label);
-    const goTo = GO_TASK[t.id] || GO_TASK[t.type];
-    return `<div class="task ${t.done ? 'done' : ''} ${nextT && t.id === nextT.id ? 'now' : ''} ${t.type === 'class' ? 'cls' : ''}" data-task="${t.id}" data-done="${t.done ? 0 : 1}" data-type="${t.type}" ${goTo && !t.done ? `data-go="${goTo}"` : ''}>
-      <span class="tm">${t.flex ? `<span class="no">${t.no}</span>` : t.time}</span>
-      <span class="check" data-tick="1">${t.done ? '✓' : ''}</span>
-      <span class="lbl">${label}<small>${sub(t)}</small>
-        ${t.type === 'review' && pend.length ? `<small>${pend.map(v => `<span class="pill" data-rv="${v.day}">复习 Day ${v.day}</span>`).join('')}</small>` : ''}</span>
-      ${goTo && !t.done ? '<span class="go">›</span>' : ''}</div>`;
+    const [em, bgc] = t.type === 'class' ? ['🏫', '#fff5dc'] : ICO[t.id] || ICO[t.type] || ['⭐', '#efeffd'];
+    const goTo = GO_TASK[t.id] || GO_TASK[t.type], now = nextT && t.id === nextT.id, sb = sub(t);
+    const act = t.type === 'class' ? '<span class="faint">今天的课</span>' : t.done ? '<em class="okt">✓ 完成啦</em>' : goTo ? `${now ? '现在 · ' : ''}去做 ›` : now ? '现在 · 做完点 ○' : '做完点 ○';
+    return `<div style="--i:${ri++};--c:${bgc}" class="tt ${t.done ? 'done' : ''} ${now ? 'now' : ''} ${t.type === 'class' ? 'cls' : ''}" data-task="${t.id}" data-done="${t.done ? 0 : 1}" data-type="${t.type}" ${goTo && !t.done ? `data-go="${goTo}"` : ''}>
+      <span class="tico">${em}${t.no ? `<i>${t.no}</i>` : ''}</span>
+      <div class="tt-mid"><b>${t.type === 'class' ? '<span class="tag cls">课</span>' : ''}${esc(t.label)}</b>${sb ? `<small>${sb}</small>` : ''}
+        ${t.type === 'review' && pend.length ? `<small>${pend.map(v => `<span class="pill" data-rv="${v.day}">复习 Day ${v.day}</span>`).join('')}</small>` : ''}
+        ${t.type === 'class' ? '' : `<span class="act">${act}</span>`}
+        ${t.type === 'class' ? '' : `<label class="mins" data-nogo="1">⏱ 用时<input type="number" inputmode="numeric" min="0" max="300" data-min="${t.id}" value="${minOf(d.date, t.id) ?? ''}" placeholder="—">分钟</label>`}</div>
+      ${t.type === 'class' ? '' : `<span class="check" data-tick="1">${t.done ? '✓' : ''}</span>`}</div>`;
   };
-  const rest = z => `<div class="rest"><span class="tm">${z.flex ? '' : z.time}</span><span>☕ 休息 ${z.dur} 分钟，喝水、站起来动一动</span></div>`;
+  const rest = z => `<div class="rest tt-rest"><span>☕ 休息 ${z.dur} 分钟，喝水、站起来动一动</span></div>`;
   groups.forEach(([name, f], gi) => {
     const ts = d.tasks.filter(f); if (!ts.length) return;
-    let no = 0; ts.filter(t => t.flex).forEach(t => { t.no = ++no; });
-    const items = ts.map(t => ({k: (t.flex && t.type !== 'class' ? '~' : '') + t.time + '1', html: row(t)})).concat((d.rests || []).filter(z => f({time: z.time})).map(z => ({k: (z.flex ? '~' : '') + z.time + '0', html: rest(z)})))
+    const key = t => (t.flex && t.type !== 'class' ? '~' : '') + t.time + '1';
+    ts.sort((a, b) => key(a) < key(b) ? -1 : 1);
+    let no = 0; ts.filter(t => t.type !== 'class').forEach(t => { t.no = ++no; });   // 按显示顺序编号
+    const items = ts.map(t => ({k: key(t), html: row(t)})).concat((d.rests || []).filter(z => f({time: z.time})).map(z => ({k: (z.flex ? '~' : '') + z.time + '0', html: rest(z)})))
       .sort((a, b) => a.k < b.k ? -1 : 1);   // 有编号的（不写时间的）排在当晚的课后面
     // 休息排在同一时刻的任务之前；但它属于前一项之后，所以把 "HH:MM0" 放前面正好
     const todo = ts.filter(t => t.type !== 'class'), n = todo.filter(t => t.done).length, all = todo.length && n === todo.length;
     const open = !all && (nowG < 0 || gi >= nowG || todo.some(t => !t.done));
-    x += `<details class="card grp" ${open ? 'open' : ''}><summary><span>${name}</span><span class="faint">${all ? '✓ 完成' : `${n}/${todo.length}`}</span></summary>${items.map(z => z.html).join('')}</details>`;
+    x += `<details class="card grp" ${open ? 'open' : ''}><summary><span>${name}</span><span class="faint">${all ? '✓ 完成' : `${n}/${todo.length}`}</span></summary><div class="tts">${items.map(z => z.html).join('')}</div></details>`;
   });
   x += `<div class="row" style="gap:10px;margin-top:6px"><button class="btn soft block" id="openMedia" style="flex:1">📺 素材库</button><button class="btn soft block" id="share" style="flex:1">📤 发给家长</button></div>`;
   app.innerHTML = x;
@@ -980,7 +1208,9 @@ async function today() {
     else if (g === 'review' && pend.length) { state.cardDay = pend[0].day; state.mode = 'zh'; state.deck = 'pet'; go('words'); }
   };
   $$('[data-rv]').forEach(el => el.onclick = e => { e.stopPropagation(); state.cardDay = +el.dataset.rv; state.mode = 'zh'; state.deck = 'pet'; go('words'); });
+  $$('[data-min]').forEach(inp => { inp.onclick = e => e.stopPropagation(); inp.onchange = () => { setMin(d.date, inp.dataset.min, inp.value); inp.blur(); toast(inp.value ? `记下了：${inp.value} 分钟` : '已清空'); }; });
   $$('[data-task]').forEach(el => el.onclick = async e => {
+    if (e.target.closest('[data-nogo]')) return;
     if (el.dataset.go && !e.target.closest('[data-tick]')) { openTask(el.dataset.go); return; }
     toggleTask(el.dataset.task, el.dataset.done === '1', el.dataset.type);
   });
@@ -999,8 +1229,9 @@ async function toggleTask(task, on, type) {
     if (!on) { toast('已取消'); render(); return res; }
     const el = document.querySelector(`[data-task="${task}"] .check`), bx = el ? el.getBoundingClientRect() : {left: innerWidth / 2, top: innerHeight / 2, width: 0, height: 0};
     const cx = bx.left + bx.width / 2, cy = bx.top + bx.height / 2;
-    render();
-    if (!before && after) bigCelebrate('🎮', '今天全部完成！', '零食 或 20 分钟游戏，自己选一个', '去选奖励', () => go('rewards'));
+    await render();
+    const nc = document.querySelector(`[data-task="${task}"] .check`); if (nc) nc.classList.add('pop');
+    if (!before && after) bigCelebrate('🎮', '今天全部完成！', '试炼 2 局 / 排位 1 局 / 手机 20 分钟，自己选一个；周末再 +15 分钟', '去选奖励', () => go('rewards'));
     else { chime(false); confetti(cx, cy, 18); floatText(cx, cy - 10, type === 'word' || type === 'ket' ? '+2⭐' : '+1⭐');
       toast(rs.daily.remaining > 0 ? `再做 ${rs.daily.remaining} 项就能玩 🎮` : '完成 +1⭐'); }
     return res;
@@ -1158,9 +1389,12 @@ async function words() {
   const testing = m !== 'all';
   const res = Object.entries(quiz).filter(([k]) => /^\d+$/.test(k));
   const okN = res.filter(([, v]) => v !== 'no').length, wrong = res.filter(([, v]) => v === 'no').map(([k]) => card.words[k]);
-  let x = deckSeg() + `<div class="row between" style="margin-top:6px"><div><div class="sub">${esc(card.topics)}</div><h1>Day ${day}</h1></div>
-      <span class="tag" style="${meta.learned ? 'background:var(--ok-soft);color:var(--ok)' : ''}">${meta.learned ? '已背 ' + meta.learned.slice(5).replace('-', '/') : day === list.current ? '今天要背' : '未背'}</span></div>
-    ${meta.learned ? `<div class="faint" style="margin-top:4px">复习：${['次日', '第4天', '第7天', '第15天', '第30天'].map((n, i) => (meta.reviews.includes(i + 1) ? '✓' : '○') + n).join('　')}</div>` : ''}
+  const learnedN = list.cards.filter(k => k.learned).length;
+  let x = deckSeg() + `<div class="card hero-card wd-hero pet"><div class="row between" style="align-items:flex-start"><div style="min-width:0"><div class="sub">${esc(card.topics)}</div><h1 class="wd-h">Day ${day}</h1></div>
+      <span class="wd-pet">🐶</span></div>
+      <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:8px"><span class="tag">${meta.learned ? '✓ 已背 ' + meta.learned.slice(5).replace('-', '/') : day === list.current ? '⭐ 今天要背' : '未背'}</span>${meta.learned ? ['次日', '第4天', '第7天', '第15天', '第30天'].map((n, i) => `<span class="rvd ${meta.reviews.includes(i + 1) ? 'on' : ''}">${meta.reviews.includes(i + 1) ? '✓' : ''}${n}</span>`).join('') : ''}</div>
+      <div class="row between" style="margin-top:14px"><span class="sub">PET 单词卡 ${learnedN} / ${list.cards.length}</span><span class="sub">${Math.round(learnedN / list.cards.length * 100)}%</span></div>
+      <div class="bar wd-bar"><i style="width:${learnedN / list.cards.length * 100}%"></i></div></div>
     <div class="seg" style="margin:14px 0">${[['all', '跟读'], ['zh', '遮中文 · 说中文'], ['en', '遮英文 · 说英文']].map(([k, t]) => `<button data-mode="${k}" class="${m === k ? 'on' : ''}">${t}</button>`).join('')}</div>
     <div class="faint" style="margin:0 4px">${m === 'all' ? '点 🔊 听发音，跟读两遍，每个词说一句话' : m === 'zh' ? '点 🔊 听英文，再点 🎤 用中文说出意思' : '看中文，点 🎤 一个字母一个字母拼出来（直接说单词也算想起来了）'}</div>
     ${(() => { const due = reviewsDue(todayIso()).find(v => v.day === day && !v.done);
@@ -1180,7 +1414,7 @@ async function words() {
         : `<b class="${hideEn ? 'mask' : ''}" data-rev>${esc(w.w)}</b><span class="${hideEn ? 'mask' : ''}" data-rev>${esc(w.ipa)}</span>`;
       const zhCell = m === 'zh' && r ? `<span style="color:${col};font-weight:700">${esc(said)}</span><div class="faint" style="margin-top:2px">${r === 'no' ? '正确：' : ''}${esc(w.zh)}${r === 'no' ? ` · <a href="#" data-fix="${i}" style="color:var(--pri)">我其实对了</a>` : ''}</div>`
         : `<span class="${hideZh ? 'mask' : ''}" data-rev>${esc(w.zh)}</span>`;
-      return `<div class="wrow" id="w${i}"><span class="n">${mark || i + 1}</span>
+      return `<div class="wrow ${r ? (r === 'no' ? 'no' : 'ok') : ''} ${quiz._last === i ? 'just' : ''}" id="w${i}"><span class="n">${mark || i + 1}</span>
       <div class="en">${enCell}</div>
       <div class="zh">${zhCell}
         </div>
@@ -1198,7 +1432,7 @@ async function words() {
   const judge = (i, alts) => {
     const w = card.words[i];
     const r = m === 'zh' ? (judgeZh(alts, w.zh) ? 'ok' : 'no') : (judgeEn(alts, w.w) || 'no');
-    quiz[i] = r;
+    quiz[i] = r; quiz._last = i;
     quiz['h' + i] = m === 'en' && /^([a-z][\s\-.,]+){2,}[a-z]\W*$/i.test(alts[0].trim()) ? alts[0].trim().replace(/[\s.,]+/g, '-').replace(/-+/g, '-').toLowerCase() : alts[0];
     const ok = Object.entries(quiz).filter(([k, v]) => /^\d+$/.test(k) && v !== 'no').length;
     const res = LOCAL['POST /api/wordtest']({day, ok});
@@ -1211,7 +1445,7 @@ async function words() {
   bindDeck();
   $$('[data-mode]').forEach(b => b.onclick = () => { state.mode = b.dataset.mode; state.cardDay = day; render(); });
   $$('[data-rev]').forEach(el => el.onclick = () => el.classList.remove('mask'));
-  $$('[data-say]').forEach(b => b.onclick = () => sayEn(b.dataset.say));
+  $$('[data-say]').forEach(b => b.onclick = () => { sayEn(b.dataset.say); b.classList.add('playing'); setTimeout(() => b.classList.remove('playing'), 1400); });
   $$('[data-mic]').forEach(b => b.onclick = async () => {
     const i = +b.dataset.mic;
     try { speechSynthesis.cancel(); } catch (e) {}
@@ -1239,7 +1473,8 @@ async function ketView() {
   const t = todayIso(), s = ketSession(t), marks = ketMarks(t);
   const items = [...s.due.map(w => ({...w, due: true})), ...s.words];
   const n = items.filter(w => w.w in marks).length, ok = items.filter(w => marks[w.w] === 1).length;
-  let x = deckSeg() + `<div class="row between" style="margin-top:6px"><div><div class="sub">以前背过的，快速过一遍</div><h1>KET 复习${s.day ? ' Day ' + s.day : ''}</h1></div><span class="tag">共 ${s.total} 天</span></div>`;
+  let x = deckSeg() + `<div class="card hero-card wd-hero ket"><div class="row between" style="align-items:flex-start"><div><div class="sub">以前背过的，快速过一遍</div><h1 class="wd-h">KET 复习${s.day ? ' Day ' + s.day : ''}</h1></div><span class="wd-pet">🐱</span></div>
+    <div class="row" style="gap:6px;margin-top:8px"><span class="tag">共 ${s.total} 天</span>${s.due.length ? `<span class="tag">🔁 ${s.due.length} 个生词</span>` : ''}</div></div>`;
   if (!s.day) x += '<div class="card">KET 词汇全部复习完了 🎉</div>';
   else {
     x += `<div class="card" style="padding:14px 18px"><div class="row between"><b>${s.finished ? '今天的 KET 复习完成 ✅' : `已过 ${n}/${items.length}`}</b><span class="faint">认识 ${ok} 个</span></div>
@@ -1247,7 +1482,7 @@ async function ketView() {
       <div class="faint" style="margin-top:8px">看英文想意思，想好了点 ✓ 或 ✗ 看答案。不认识的会在第 2、4、7…天再出现${s.due.length ? `；今天有 ${s.due.length} 个生词要复习（橙色）` : ''}</div></div>
       <div class="card" style="padding:4px 16px">` + items.map((w, i) => {
         const m = marks[w.w];
-        return `<div class="wrow"><span class="n">${m === 1 ? '<b style="color:var(--ok)">✓</b>' : m === 0 ? '<b style="color:var(--warn)">✗</b>' : i + 1}</span>
+        return `<div class="wrow kr ${m === 1 ? 'ok' : m === 0 ? 'no' : ''} ${state.ketLast === i ? 'just' : ''}"><span class="n">${m === 1 ? '<b style="color:var(--ok)">✓</b>' : m === 0 ? '<b style="color:var(--warn)">✗</b>' : i + 1}</span>
           <div class="en"><b style="${w.due ? 'color:var(--warn)' : ''}">${esc(w.w)}</b><span>${esc(w.ipa)}</span></div>
           <div class="zh"><span class="${m === undefined ? 'mask' : ''}">${esc(w.zh)}</span></div>
           <div class="row" style="gap:6px"><button class="say" data-say="${esc(w.w)}">🔊</button>${m === undefined ? `<button class="say" data-k="${i}:1" style="background:var(--ok-soft);color:var(--ok)">✓</button><button class="say" data-k="${i}:0" style="background:var(--warn-soft);color:var(--warn)">✗</button>` : ''}</div></div>`;
@@ -1256,10 +1491,10 @@ async function ketView() {
   const y = scrollY;
   app.innerHTML = x; scrollTo(0, y);
   bindDeck();
-  $$('[data-say]').forEach(b => b.onclick = () => sayEn(b.dataset.say));
+  $$('[data-say]').forEach(b => b.onclick = () => { sayEn(b.dataset.say); b.classList.add('playing'); setTimeout(() => b.classList.remove('playing'), 1400); });
   $$('[data-k]').forEach(b => b.onclick = async () => {
     const [i, ok1] = b.dataset.k.split(':').map(Number), w = items[i];
-    marks[w.w] = ok1; await api('/api/ket/result', {item: w, ok: !!ok1});
+    marks[w.w] = ok1; state.ketLast = i; await api('/api/ket/result', {item: w, ok: !!ok1});
     if (!s.finished && items.every(v => v.w in marks)) { await api('/api/ket/finish', {day: s.day}); toast('🎉 今天的 KET 复习完成 +2⭐'); }
     render();
   });
@@ -1345,7 +1580,7 @@ async function wenyanDetail(i) {
   $('#sayStop').onclick = () => { try { speechSynthesis.cancel(); } catch (e) {} };
   $$('[data-st]').forEach(el => el.onclick = async () => {
     const k = +el.dataset.st, on = !w.checks.includes(k);
-    await api('/api/wenyan/check', {idx: i, stage: k, done: on}); if (on) toast(k === 2 ? '背会了！成长大奖 +1 🎁' : '打卡 +1⭐'); render();
+    await api('/api/wenyan/check', {idx: i, stage: k, done: on}); if (on) toast(k === 2 ? '背会了！太厉害了 🎉' : '打卡 +1⭐'); render();
   });
 }
 
@@ -1374,7 +1609,7 @@ function badgeList() {
     ['s3', '🔥', '三连胜', '连续 3 天全部完成', bs >= 3, bs, 3],
     ['s7', '☄️', '七连胜', '连续 7 天全部完成', bs >= 7, bs, 7],
     ['s21', '🏆', '21 天习惯王', '连续 21 天全部完成', bs >= 21, bs, 21],
-    ['week', '🎮', '周冠军', '拿到一次周末 1 小时', wk, wk ? 1 : 0, 1],
+    ['week', '🎮', '周冠军', '兑现一次周末奖励', wk, wk ? 1 : 0, 1],
     ['w10', '📘', '单词小达人', '背完 10 张单词卡', words >= 10, words, 10],
     ['w30', '📗', '单词高手', '背完 30 张单词卡', words >= 30, words, 30],
     ['w90', '📕', '单词大师', '背完全部 90 张', words >= 90, words, 90],
@@ -1438,7 +1673,6 @@ async function rewards() {
   const t = todayIso(), r = rewardsState(t), dl = r.daily, wk = r.weekly, bg = r.big;
   const [cDone, cTotal] = coreProgress(t), L = levelOf(earned()), bs = badgeList(), got = bs.filter(b => b.got).length;
   const ready = bg.items.filter(m => m.unlocked && !m.claimed);
-  const nextBig = bg.items.filter(m => !m.unlocked)[0];
   const pct = cTotal ? cDone / cTotal : 0;
   let x = `<div style="margin-top:6px"><div class="sub">每做一项都算数</div><h1>我的奖励</h1></div>
     <div class="lvcard" id="toBadges"><div class="row" style="gap:14px"><div class="ic">${L.ic}</div>
@@ -1447,34 +1681,38 @@ async function rewards() {
       <div style="text-align:center"><div style="font-size:26px">🔥</div><b>${streak(t)}</b><div style="font-size:11px;opacity:.85">连续天</div></div></div>
       <div class="lvbar"><i style="width:${Math.round(L.pct * 100)}%"></i></div></div>
 
-    <div class="rw ${dl.unlocked && !dl.claimed ? 'on' : ''}"><div class="row between"><span class="tag">今日奖励</span><span class="faint">${dl.claimed ? '已兑现' : '今天有效'}</span></div>
-      <div class="big">🍫 零食 或 🎮 20 分钟</div>
-      ${dl.claimed ? `<div class="sub">今天选了：${esc(dl.claimed.note.replace('每日奖励：', ''))} ✅ 明天继续！</div>`
-        : `<div class="charge ${dl.unlocked ? 'full' : ''}"><i style="width:${Math.max(6, pct * 100)}%"></i><b>${dl.unlocked ? '⚡ 充满啦！选一个吧' : `⚡ 充能 ${cDone}/${cTotal} · 再做 ${cTotal - cDone} 项`}</b></div>`}
-      ${dl.unlocked && !dl.claimed ? '<div class="row" style="margin-top:14px"><button class="btn block" id="cDs">🍫 一份零食</button><button class="btn block" id="cDg">🎮 20 分钟游戏</button></div>' : ''}</div>
+    <div class="rw rw-d ${dl.unlocked && !dl.claimed ? 'on' : ''}"><div class="row between"><span class="tag">今日奖励</span><span class="faint">${dl.claimed ? '已选好' : '今天有效 · 三选一'}</span></div>
+      ${dl.claimed ? `<div class="big">✅ ${esc(dl.claimed.note.replace('每日奖励：', ''))}</div><div class="sub">今天选好啦，明天继续！</div>`
+        : `<div class="charge ${dl.unlocked ? 'full' : ''}"><i style="width:${Math.max(6, pct * 100)}%"></i><b>${dl.unlocked ? '⚡ 充满啦！自己选一个' : `⚡ 充能 ${cDone}/${cTotal} · 再做 ${cTotal - cDone} 项`}</b></div>`}
+      ${dl.claimed ? '' : `<div class="opts">${DAILY_OPTS.map(([k, ic, nm], i) => `<button class="opt ${dl.unlocked ? 'ready' : ''}" data-dopt="${k}" style="--d:${i * 0.12}s" ${dl.unlocked ? '' : 'disabled'}><span class="oi">${ic}</span>${nm}</button>`).join('')}</div>`}</div>
 
-    <div class="rw ${wk.usable && !wk.claimed ? 'on' : ''}"><div class="row between"><span class="tag">周末大奖</span><span class="faint">周一到周五每天全完成</span></div>
-      <div class="big">🏆 多玩 1 小时</div>${weekDots(wk)}
+    <div class="rw rw-w ${wk.usable && !wk.claimed ? 'on' : ''}"><div class="row between"><span class="tag">周末奖励</span><span class="faint">每天全完成 +${WEEK_MIN} 分钟</span></div>
+      <div class="big">🎮 已攒 <span class="cnt" data-to="${wk.minutes}">${wk.minutes}</span> 分钟</div>
+      <div class="wkm">${wk.days.map(z => `<div class="${z.state}"><i>${z.state === 'full' ? '+' + WEEK_MIN : z.state === 'miss' ? '–' : z.state === 'today' ? '今' : z.label}</i>周${z.label}</div>`).join('')}</div>
+      <div class="bar" style="margin-top:12px"><i style="width:${wk.minutes / (WEEK_MIN * 5) * 100}%"></i></div>
       <div class="sub" style="margin-top:10px">${weekText(wk, t)}</div>
       ${wk.usable && !wk.claimed ? '<button class="btn" id="cW" style="margin-top:14px">找家长兑现</button>' : ''}</div>
 
-    <div class="rw ${ready.length ? 'on' : ''}"><div class="row between"><span class="tag">成长大奖</span><span class="faint">攒着不过期</span></div>
-      <div class="big" style="${bg.name.length > 10 ? 'font-size:20px;line-height:1.35' : ''}">🎁 ${esc(bg.name)}</div>
-      ${ready.length ? `<div style="margin-top:8px;font-weight:700">可以兑现 ${ready.length} 次！</div>` + ready.map(m => `<div class="row between" style="margin-top:8px"><span>${esc(m.label)}</span><button class="btn sm" data-cb="${m.key}">兑现</button></div>`).join('')
-        : `<div class="sub">${nextBig ? `下一个：${esc(nextBig.label)}` : '全部拿到了！'}</div>`}
-      <div style="margin-top:12px"><div class="row between faint"><span>单词卡 ${bg.words} / ${bg.nextWord} 张</span><span>文言文背会 1 篇也算一次</span></div>
-        <div class="bar" style="margin-top:6px"><i style="width:${Math.min(100, (bg.words % 10) * 10 || (bg.words ? 100 : 0))}%"></i></div></div></div>
+    <div class="rw rw-g ${ready.length ? 'on' : ''}"><div class="row between"><span class="tag">成长大奖</span><span class="faint">连续 ${bg.need} 天不缺勤</span></div>
+      <div class="big">${ready.length ? '🎉 大奖解锁！' : `🔥 已坚持 ${bg.prog} 天`}</div>
+      <div class="charge ${ready.length ? 'full' : ''}" style="height:30px"><i style="width:${ready.length ? 100 : Math.max(4, bg.prog / bg.need * 100)}%"></i><b style="font-size:13px">${ready.length ? '选一个，找家长兑现' : `${bg.prog} / ${bg.need} 天 · 再坚持 ${bg.need - bg.prog} 天`}</b></div>
+      <div class="opts">${BIG_OPTS.map(([k, ic, nm], i) => `<button class="opt ${ready.length ? 'ready' : ''}" data-bopt="${k}" style="--d:${i * 0.12}s" ${ready.length ? '' : 'disabled'}><span class="oi">${ic}</span>${nm}</button>`).join('')}</div>
+      <div class="faint" style="margin-top:10px">每天全部完成算 1 天，断一天就重新数</div></div>
 
     <div class="card" id="badges"><div class="row between"><h2>🏅 徽章墙</h2><span class="faint">${got} / ${bs.length}</span></div>
       <div class="badges">${bs.map(b => `<div class="badge ${b.got ? '' : 'off'}" title="${esc(b.desc)}"><div class="bi">${b.ic}</div>${esc(b.name)}<small>${b.got ? '已获得' : `${b.n}/${b.need}`}</small></div>`).join('')}</div></div>`;
   const hist = await api('/api/claims');
   x += `<details class="card grp"><summary><span>兑现记录</span><span class="faint">${hist.length} 次</span></summary>${hist.length ? hist.slice(0, 30).map(h => `<div class="mile"><span style="flex:1">${esc(h.note)}</span><span class="faint">${h.date.slice(5).replace('-', '/')}</span></div>`).join('') : '<div class="faint" style="padding:6px 0 14px">还没有，加油！</div>'}</details>`;
   app.innerHTML = x;
-  const claim = (key, title, msg, choice) => askPin('兑现：' + title, async p => { const res = await api('/api/claim', {key, pin: p, choice}); if (!res.error) { render(); setTimeout(() => bigCelebrate(choice === 'snack' ? '🍫' : choice === 'game' ? '🎮' : '🎁', msg, '这是你自己挣来的！'), 50); } return res; });
-  if ($('#cDs')) $('#cDs').onclick = () => claim(dl.key, '一份零食', '去挑零食吧！', 'snack');
-  if ($('#cDg')) $('#cDg').onclick = () => claim(dl.key, '20 分钟游戏', '去玩 20 分钟吧！', 'game');
-  if ($('#cW')) $('#cW').onclick = () => claim(wk.key, '周末 1 小时游戏', '周末多玩 1 小时！');
-  $$('[data-cb]').forEach(b => b.onclick = () => claim(b.dataset.cb, bg.name, '成长大奖到手！'));
+  const claim = (key, title, msg, choice) => askPin('兑现：' + title, async p => { const res = await api('/api/claim', {key, pin: p, choice}); if (!res.error) { render(); setTimeout(() => bigCelebrate(((BIG_OPTS.find(z => z[0] === choice) || [])[1]) || '🎮', msg, '这是你自己挣来的！'), 50); } return res; });
+  $$('[data-dopt]').forEach(b => b.onclick = async () => {   // 每日奖励：孩子自己选，直接记录
+    const o = DAILY_OPTS.find(z => z[0] === b.dataset.dopt), res = await api('/api/claim', {key: dl.key, choice: o[0]});
+    if (res.error) { toast(res.error); return; }
+    render(); setTimeout(() => bigCelebrate(o[1], `选好了：${o[2]}`, '这是你自己挣来的！已经记下来了'), 50);
+  });
+  if ($('#cW')) $('#cW').onclick = () => claim(wk.key, `周末多玩 ${wk.minutes} 分钟`, `周末多玩 ${wk.minutes} 分钟！`, 'week');
+  $$('[data-bopt]').forEach(b => b.onclick = () => { const o = BIG_OPTS.find(z => z[0] === b.dataset.bopt); claim(ready[0].key, o[2], o[2] + '，到手！', o[0]); });
+
   $('#toBadges').onclick = () => $('#badges').scrollIntoView({behavior: 'smooth'});
 }
 
@@ -1488,11 +1726,30 @@ async function parent() {
   days7.filter(d => d < t).forEach(d => { const m = DATA.taskDone[d] || {}; tasksFor(d).filter(z => z.type !== 'class' && !m[z.id]).forEach(z => { miss[z.label] = (miss[z.label] || 0) + 1; }); });
   const missTop = Object.entries(miss).sort((a, b) => b[1] - a[1]).slice(0, 3);
   const L = levelOf(s.earned), ketDone = Object.keys((DATA.ket || {}).done || {}).length;
+  /* 用时分析：最近 7 天各项平均用时（只算填了的） */
+  const TM = DATA.taskMin || {}, todayM = TM[t] || {}, todayMin = Object.values(todayM).reduce((a, b) => a + b, 0), todayMinN = Object.keys(todayM).length;
+  const agg = {};
+  days7.forEach(d => Object.entries(TM[d] || {}).forEach(([id, m]) => { const a = agg[id] = agg[id] || {sum: 0, n: 0}; a.sum += m; a.n++; }));
+  const avgs = Object.entries(agg).map(([id, a]) => ({id, label: (tasksFor(t).concat(tasksFor(addDays(t, -1))).find(z => z.id === id) || {}).label || LABEL[id] || id, avg: Math.round(a.sum / a.n), n: a.n})).sort((a, b) => b.avg - a.avg);
+  const mx = Math.max(1, ...avgs.map(a => a.avg)), dayTot = days7.map(d => Object.values(TM[d] || {}).reduce((a, b) => a + b, 0)), dmx = Math.max(1, ...dayTot);
+  const minCard = `<div class="card"><div class="row between"><h2>⏱ 用时分析</h2><span class="faint">最近 7 天</span></div>
+    ${avgs.length ? `<div class="dbar">${days7.map((d, i) => `<div><i style="height:${Math.max(4, dayTot[i] / dmx * 100)}%"></i><b>${dayTot[i] || ''}</b>${'日一二三四五六'[new Date(d + 'T00:00').getDay()]}</div>`).join('')}</div>
+      <div class="faint" style="margin:14px 0 4px">各项平均用时（分钟）</div>
+      ${avgs.map(a => `<div class="hb"><span>${esc(a.label)}</span><div><i style="width:${a.avg / mx * 100}%"></i></div><b>${a.avg}</b></div>`).join('')}`
+      : '<div class="sub" style="margin-top:6px">在「今天」页每项任务下面的「⏱ 用时」填上分钟数，这里就会出现每天总用时和各项平均用时。</div>'}</div>`;
+  const cl = Object.entries(DATA.claims || {}).map(([key, v]) => ({key, ...v})).sort((a, b) => b.at - a.at);
+  const cnt = DAILY_OPTS.map(([k, ic, nm]) => [ic, nm, cl.filter(c => c.note === '每日奖励：' + nm).length]);
+  const rewardCard = `<div class="card"><div class="row between"><h2>🎁 孩子选的奖励</h2><span class="faint">共 ${cl.length} 次</span></div>
+    <div class="pstat" style="margin-top:12px">${cnt.map(([ic, nm, n]) => `<div><b>${n}</b>${ic} ${nm.replace('王者荣耀', '')}</div>`).join('')}</div>
+    ${cl.slice(0, 5).map(c => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--line);margin-top:6px"><span style="font-size:14px">${esc(c.note)}</span><span class="faint">${c.date.slice(5).replace('-', '/')}</span></div>`).join('')}</div>`;
   const prog = (name, n, total, col) => `<div style="margin-top:12px"><div class="row between"><span>${name}</span><span class="faint">${n} / ${total}</span></div><div class="bar" style="margin-top:6px"><i style="width:${total ? Math.min(100, n / total * 100) : 0}%;${col ? 'background:' + col : ''}"></i></div></div>`;
   let x = `<div style="margin-top:6px"><div class="sub">只给家长看</div><h1>家长看板</h1></div>
-    <div class="card"><div class="row between"><h2>今天</h2><span class="tag" style="${left.length ? 'background:var(--warn-soft);color:var(--warn)' : 'background:var(--ok-soft);color:var(--ok)'}">${tt.length - left.length} / ${tt.length}</span></div>
-      <div class="sub" style="margin-top:6px">${left.length ? '还没做：' + left.map(z => `${esc(z.label)}${z.flex ? '' : `<span class="faint">（${z.time}）</span>`}`).join('、') : '全部完成 🎉'}</div>
-      <div class="row" style="gap:16px;margin-top:12px;flex-wrap:wrap"><span>🔥 连续 <b>${s.streak}</b> 天</span><span>🏅 最长 <b>${bestStreak()}</b> 天</span><span>${L.ic} Lv${L.lv} ${L.name}</span></div></div>
+    <div class="card hero-card"><div class="hero">${ring(tt.length - left.length, tt.length)}
+      <div style="flex:1;min-width:0"><h2>${left.length ? `今天还差 ${left.length} 项` : '今天全部完成 🎉'}</h2>
+        <div class="sub" style="margin-top:4px">今天用时 <b style="color:#fff" class="cnt" data-to="${todayMin}">${todayMin}</b> 分钟${todayMinN ? `（填了 ${todayMinN} 项）` : ''}</div></div></div>
+      ${left.length ? `<div class="chips">${left.map(z => `<span>${esc(z.label)}</span>`).join('')}</div>` : ''}
+      <div class="pstat"><div><b class="cnt" data-to="${s.streak}">${s.streak}</b>连续天</div><div><b class="cnt" data-to="${bestStreak()}">${bestStreak()}</b>最长连续</div><div><b>${L.ic}</b>Lv${L.lv} ${L.name}</div><div><b class="cnt" data-to="${s.earned}">${s.earned}</b>星星</div></div></div>
+    ${minCard}${rewardCard}
     ${s.reviews_pending ? `<div class="warn">📌 有 ${s.reviews_pending} 张单词卡到了复习时间还没复习</div>` : ''}
     <div class="card"><h2>最近 7 天</h2>
       <div class="d7">${days7.map(d => { const [n, tot] = dayProgress(d), f = coreFull(d); return `<div><i class="${f ? 'full' : d === t ? 'today' : n ? 'part' : ''}" style="--p:${tot ? n / tot : 0}">${f ? '✓' : tot ? Math.round(n / tot * 100) + '%' : ''}</i>${'日一二三四五六'[new Date(d + 'T00:00').getDay()]}</div>`; }).join('')}</div>
@@ -1506,8 +1763,6 @@ async function parent() {
       ${s.recent.slice(0, 15).map(r => `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><span style="font-size:14px">${esc(r.note)}</span><span class="faint">${r.date.slice(5).replace('-', '/')} +${r.amount}</span></div>`).join('') || '<div class="faint" style="padding-bottom:12px">还没有</div>'}</details>
 
     <details class="setbox"><summary class="sec-title">⚙️ 设置、素材链接与备份</summary>
-    <div class="card"><h2>🎁 成长大奖的奖品</h2><div class="sub" style="margin:4px 0 10px">现在：${esc(bigName())}</div>
-      <input id="bn" placeholder="例如：去一次蹦床馆 / 一盒巧克力"><button class="btn sm" id="bnSave" style="margin-top:10px">保存</button></div>
     <div class="card"><h2>📺 素材库链接</h2>
       ${listenLinks().map((l, k) => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--line)"><span>${CATS.find(c => c[0] === catOf(l))[1]} ${esc(l.name)}</span><button class="btn soft sm" data-ldel="${k}">删除</button></div>`).join('') || '<div class="sub" style="margin-top:4px">还没有</div>'}
       <div class="faint" style="margin:12px 0 8px">抖音打开合集 → 分享 → 复制链接，整段粘贴到下面，再起个名字</div>
@@ -1532,7 +1787,6 @@ async function parent() {
   $('#recGo').onclick = () => askPin('导入推荐素材', async p => { const r = await api('/api/listen/recommended', {pin: p}); if (!r.error) { toast(r.added ? `已导入 ${r.added} 个` : '都已经有了'); render(); } return r; });
   $('#pkGo').onclick = () => { const v = $('#pk').value; if (!v.trim()) { toast('请先粘贴'); return; } askPin('导入设置 / 链接包', async p => { if (String(p) !== String(pin())) return {error: '家长密码不对'}; if (!applySetupCode(v)) return {error: '内容不完整，请重新复制整条'}; toast('导入成功'); render(); return {ok: true}; }); };
   $$('[data-ldel]').forEach(b => b.onclick = () => askPin('删除这个链接', async p => { const r = await api('/api/listen/del', {pin: p, idx: b.dataset.ldel}); if (!r.error) { toast('已删除'); render(); } return r; }));
-  $('#bnSave').onclick = () => { const v = $('#bn').value; if (!v.trim()) { toast('请先填写奖品'); return; } askPin('修改成长大奖', async p => { const r = await api('/api/settings', {pin: p, bigName: v}); if (!r.error) { toast('已保存'); render(); } return r; }); };
   $('#setpin').onclick = () => { const v = $('#np').value; if (v.trim().length < 4) { toast('新密码至少 4 位'); return; } askPin('先输入原密码', async p => { const r = await api('/api/pin', {pin: p, newpin: v}); if (!r.error) { toast('密码已修改'); render(); } return r; }); };
   $('#exp').onclick = async () => {
     const text = exportBackup(), name = '学习打卡备份_' + todayIso() + '.json';
