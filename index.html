@@ -420,6 +420,23 @@ nav button.on svg{background:var(--pri-soft);animation:hop .45s cubic-bezier(.3,
 [data-view=parent] .hero-card .pstat div{background:rgba(255,255,255,.16)}
 [data-view=parent] .bar>i{position:relative;overflow:hidden}
 [data-view=parent] .bar>i:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);transform:translateX(-100%);animation:sweep 2.6s ease-in-out infinite}
+.bkup{cursor:pointer}.bkup b{text-decoration:underline}
+
+.mins{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px;background:none;padding:0;cursor:default}
+.mins label{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--sub);background:var(--card);border-radius:10px;padding:3px 8px;cursor:text}
+.tbtn{border:0;border-radius:10px;padding:5px 10px;font:700 12.5px/1.2 -apple-system,"PingFang SC",sans-serif;background:var(--pri);color:#fff;cursor:pointer}
+.tbtn.on{background:linear-gradient(90deg,#f59e0b,#ef4444);animation:glow 1.6s ease-in-out infinite;font-variant-numeric:tabular-nums}
+.tt.now .mins label,.tt.done .mins label{background:rgba(255,255,255,.75)}
+.tt .mins{background:none!important}
+@media (prefers-color-scheme:dark){.tt.now .mins label,.tt.done .mins label{background:rgba(255,255,255,.1)}}
+
+.tcr{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
+.tcr input[type=checkbox]{width:22px;height:22px;flex:none;accent-color:var(--pri)}
+.tcr .tcn{flex:1;padding:8px 10px;font-size:16px;border-radius:10px}
+.tcr .icon-btn{width:34px;height:34px;font-size:15px;flex:none}
+
+.wd-hero.wrong{background:linear-gradient(135deg,#fb923c 0%,#f43f5e 55%,#a855f7 100%);box-shadow:0 10px 30px rgba(244,63,94,.25)}
+.seg button{white-space:nowrap}
 </style>
 </head>
 <body>
@@ -569,25 +586,36 @@ function packDrop(ids, from, to, blocks, drop) {
   }
   return r;
 }
+const LITE = ['homework', 'word', 'bedread'];
+const EVE_ALL = () => EVENING.map(c => c[0]).concat(['bedread']);
+function eveOrder() {   // 晚上任务顺序：默认 EVENING + 阅读；家长调过顺序就按家长的
+  const base = EVE_ALL(), o = (settings().taskCfg || {}).order;
+  return o ? o.filter(id => base.includes(id)).concat(base.filter(id => !o.includes(id))) : base;
+}
+function isLite(date) { return !!(DATA.lite || {})[date]; }
 function planFor(date) {
   if (!CFG) return {tasks: [], rests: []};   // 没有课表（旧设置链接）也按新任务清单排，只是不显示课
-  const SCH = CFG.sched || {}, s = SCH[date] || {}, kind = dayKind(date);
+  const SCH = CFG.sched || {}, s = SCH[date] || {}, kind = dayKind(date), inVac = !!(CFG.vac && date >= CFG.vac[0] && date <= CFG.vac[1]);
   const cls = (s.c || []).map(([label, time, end], k) => {
     const st = time ? t2m(time) : null, en = st === null ? null : end ? t2m(end) : st + classDur(label);
     return {id: 'c' + k, label, time: time || '', end: en === null ? '' : m2t(en), type: 'class', s: st, e: en};
   });
   const blocks = cls.filter(c => c.s !== null).sort((a, b) => a.s - b.s);
-  const mk = (id, a, b, parts) => ({id, label: id === 'review' ? `复习旧单词卡 ${reviewsDue(date).length} 张` : id === 'abc' && kind !== 'school' ? 'ABC Reading 2 篇' : LABEL[id], time: m2t(a), end: m2t(b), dur: parts ? parts.reduce((n, [x, y]) => n + y - x, 0) : b - a, type: TYPE[id] || '', parts: parts && parts.length > 1 ? parts.map(([x, y]) => m2t(x) + '–' + m2t(y)) : null});
+  const tc = settings().taskCfg || {}, off = tc.off || {}, nm = (tc.names || {});   // 家长页「任务设置」：开关 / 改名 / 排序
+  const mk = (id, a, b, parts) => ({id, label: nm[id] ? nm[id] : id === 'review' ? `复习旧单词卡 ${reviewsDue(date).length} 张` : id === 'abc' && kind !== 'school' ? 'ABC Reading 2 篇' : id === 'homework' && inVac ? '寒假作业' : LABEL[id], time: m2t(a), end: m2t(b), dur: parts ? parts.reduce((n, [x, y]) => n + y - x, 0) : b - a, type: TYPE[id] || '', parts: parts && parts.length > 1 ? parts.map(([x, y]) => m2t(x) + '–' + m2t(y)) : null});
   const tasks = [], rests = [];
   let ms = t2m(MORNING[kind]); MORNING_TASKS.forEach(id => { tasks.push(mk(id, ms, ms + DUR[id])); ms += DUR[id]; });
   DUR.review = Math.max(5, 5 * reviewsDue(date).length);
   DUR.abc = kind === 'school' ? 10 : 20;
   DUR.homework = kind === 'school' ? 50 : 40;   // 上学日 18:40 起按 50 分钟；周末白天按 40 分钟找空档
-  const fri = isoWeekday(date) === 5;
+  const fri = isoWeekday(date) === 5 && !inVac;   // 周五只背单词（寒假里的周五按假日排）
   const weekendClass = [1, 2].some(n => ((SCH[addDays(date, n)] || {}).c || []).some(c => /高思/.test(c[0])));
-  let eve = fri ? FRIDAY.filter(c => c[0] !== 'hwfri' || weekendClass) : EVENING.slice();
+  let base = eveOrder().filter(id => !off[id]);
+  const lite = isLite(date);   // 保底模式：只做 作业 + PET 单词 + 阅读
+  if (lite) base = base.filter(id => LITE.includes(id));
+  let eve = fri ? FRIDAY.filter(c => (c[0] !== 'hwfri' || weekendClass) && !off[c[0]] && (!lite || c[0] !== 'ket')) : base.map(id => [id, 0]);
   const nRev = reviewsDue(date).length;   // 到期的旧单词卡（记忆曲线），每张约 5 分钟
-  if (nRev) { const k = eve.findIndex(c => c[0] === 'ket'); eve.splice(k, 1, ['ket', 0], ['review', eve[k][1]]); }
+  if (nRev && !lite) { const k = eve.findIndex(c => c[0] === 'ket'); if (k >= 0) eve.splice(k + 1, 0, ['review', 0]); }
   if (kind !== 'school' && !fri) {   // 周末 / 假日：学校作业放白天第一个整块空档，晚上不再排
     const busy = blocks.concat([{s: t2m(LUNCH[0]), e: t2m(LUNCH[1])}]).sort((a, b) => a.s - b.s);
     let t = ms + 10;
@@ -595,11 +623,11 @@ function planFor(date) {
     const hw = t + DUR.homework <= t2m('18:20') ? {s: t, e: t + DUR.homework} : null;
     if (hw) { tasks.push(mk('homework', hw.s, hw.e)); eve = eve.filter(c => c[0] !== 'homework'); }
     const aft = kind === 'sun' ? ['sport', 'dict', 'goodsent'] : kind === 'sat' ? ['sport', 'ewrite'] : ['sport'];
-    const r = packDrop(aft, t2m('15:00'), t2m('18:20'), (hw ? blocks.concat([hw]) : blocks.slice()).sort((a, b) => a.s - b.s), []);
+    const r = packDrop(aft, t2m('15:00'), t2m('18:20'), (hw ? blocks.concat([hw]) : blocks.slice()).sort((a, b) => a.s - b.s), ['sport', 'ewrite', 'dict', 'goodsent']);   // 白天排不下的户外等当天不出现，不挤到晚上
     r.out.forEach(x => tasks.push(mk(x.id, x.s, x.e))); rests.push(...r.rests);
   }
   // 晚上（11/19 家长定）：只按顺序列任务，不排时间、不按课挪项、不插休息，时间家长自己安排；time 只用来排序和归到"晚上"组
-  const eveIds = eve.map(c => c[0]).concat(fri ? [] : ['bedread']);   // 周五只做周末课作业 + 背单词
+  const eveIds = eve.map(c => c[0]);   // 周五只做周末课作业 + 背单词（FRIDAY 里没有阅读）
   eveIds.forEach((id, i) => tasks.push({...mk(id, t2m('18:00') + i, t2m('18:00') + i), flex: true}));
   return {tasks: tasks.concat(cls).sort((a, b) => (a.time || '99').localeCompare(b.time || '99')), rests: rests.map(x => ({time: m2t(x.s), dur: x.d, flex: !!x.flex}))};
 }
@@ -855,15 +883,16 @@ function weekInfo(date) {
     minutes: days.filter(x => x.state === 'full').length * WEEK_MIN, weekend: date >= sat && date <= sun,
     total: days.filter(x => x.state !== 'skip').length};
 }
-/* 11/19 家长定的奖励：每日三选一（孩子自己选，记录下来）；周一到周五每天全完成攒 15 分钟周末时间；连续 30 天全部完成 = 成长大奖三选一 */
+/* 11/19 家长定的奖励：每日三选一（孩子自己选，记录下来）；周一到周五每天全完成攒 15 分钟周末时间；累计 30 天全部完成 = 成长大奖三选一 */
 const DAILY_OPTS = [['trial', '⚔️', '王者荣耀试炼 2 局'], ['rank', '🏆', '王者荣耀排位 1 局'], ['phone', '📱', '手机时间 20 分钟']];
 const BIG_OPTS = [['skin', '👑', '王者荣耀皮肤 1 个'], ['meal', '🍖', '一顿大餐'], ['yh', '🛒', '永辉超市零食购一趟']];
 const WEEK_MIN = 15, MONTH_DAYS = 30;
-function growth(date) {
-  const s = streak(date), end = coreFull(date) ? date : addDays(date, -1), runStart = s ? addDays(end, 1 - s) : null;
-  const items = [...Array(Math.floor(s / MONTH_DAYS))].map((_, k) => ({key: `big:month:${runStart}:${k + 1}`, label: `连续 ${(k + 1) * MONTH_DAYS} 天全部完成`, unlocked: true}));
+function growth(date) {   // 11/19 改为累计：每天全部完成算 1 天，断了不清零，每满 30 天解锁一次
+  const start = CFG ? CFG.start_date : date; let total = 0;
+  for (let d = start; d <= date; d = addDays(d, 1)) if (coreFull(d)) total++;
+  const items = [...Array(Math.floor(total / MONTH_DAYS))].map((_, k) => ({key: `big:cum:${k + 1}`, label: `累计 ${(k + 1) * MONTH_DAYS} 天全部完成`, unlocked: true}));
   items.forEach(x => x.claimed = DATA.claims[x.key] || null);
-  return {streak: s, prog: s % MONTH_DAYS, need: MONTH_DAYS, items};
+  return {total, prog: total % MONTH_DAYS, need: MONTH_DAYS, items};
 }
 function milestones() {
   const words = Object.keys(DATA.wordLearn).length;
@@ -1111,11 +1140,53 @@ function weekText(w, date) {
 }
 
 /* 每项任务实际用时（家长/孩子手动填，分钟），存 DATA.taskMin[日期][任务]，家长看板做分析 */
+/* 计时：点「▶ 开始」记下开始时间，打勾或点「⏸」时自动把分钟数填进用时（同一时间只计一项） */
+function stopTimer() {
+  const tm = DATA.timer; if (!tm) return 0;
+  const m = Math.max(1, Math.round((Date.now() - tm.t) / 60000));
+  setMin(tm.date, tm.id, ((DATA.taskMin || {})[tm.date] || {})[tm.id] ? (DATA.taskMin[tm.date][tm.id] + m) : m);   // 分几段计时就累加
+  delete DATA.timer; save(); return m;
+}
+setInterval(() => $$('.tmr').forEach(el => { const s = Math.floor((Date.now() - +el.dataset.t0) / 1000); el.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }), 1000);
 function minOf(date, id) { const v = ((DATA.taskMin || {})[date] || {})[id]; return v === undefined ? null : v; }
 function setMin(date, id, v) {
   DATA.taskMin = DATA.taskMin || {}; const m = DATA.taskMin[date] = DATA.taskMin[date] || {}, n = parseInt(v, 10);
   if (isNaN(n) || n < 0) delete m[id]; else m[id] = Math.min(n, 600);
   save();
+}
+/* 每周小结：完成天数、总用时、背了几张卡、错词、最常没做完的 */
+function weekSummary(date) {
+  const mon = addDays(date, 1 - isoWeekday(date)), start = CFG ? CFG.start_date : date;
+  const days = [...Array(7)].map((_, i) => addDays(mon, i)).filter(d => d <= date && d >= start);
+  const full = days.filter(d => coreFull(d)).length, TM = DATA.taskMin || {};
+  const mins = days.reduce((a, d) => a + Object.values(TM[d] || {}).reduce((x, y) => x + y, 0), 0);
+  const pet = Object.values(DATA.wordLearn || {}).filter(d => d >= mon && d <= date).length;
+  const wrong = Object.values(DATA.wrongBook || {}).filter(w => w.last >= mon).length;
+  const miss = {}; days.filter(d => d < date || coreFull(d)).forEach(d => { const m = DATA.taskDone[d] || {}; coreTasks(d).filter(z => !m[z.id]).forEach(z => { miss[z.label] = (miss[z.label] || 0) + 1; }); });
+  const top = Object.entries(miss).sort((a, b) => b[1] - a[1])[0];
+  const text = `📊 ${md(mon)}–${md(date)} 学习小结\n✅ 全部完成 ${full}/${days.length} 天\n⏱ 总用时 ${mins} 分钟\n🐶 PET 新背 ${pet} 张卡\n🦊 新增错词 ${wrong} 个${top ? `\n🐢 最常没做完：${top[0]}（${top[1]} 次）` : ''}\n🎮 周末已攒 ${weekInfo(date).minutes} 分钟`;
+  return {mon, days: days.length, full, mins, pet, wrong, top, text};
+}
+function weekCard(date) {
+  const w = weekSummary(date);
+  return `<div class="card wsum"><div class="row between"><h2>📊 本周小结</h2><span class="faint">${md(w.mon)} 起</span></div>
+    <div class="pstat" style="margin-top:12px"><div><b>${w.full}/${w.days}</b>完成天</div><div><b>${w.mins}</b>总分钟</div><div><b>${w.pet}</b>PET 卡</div><div><b>${w.wrong}</b>新错词</div></div>
+    ${w.top ? `<div class="faint" style="margin-top:10px">最常没做完：${esc(w.top[0])}（${w.top[1]} 次）</div>` : ''}
+    <button class="btn soft sm" id="wsShare" style="margin-top:12px">📤 发给家长</button></div>`;
+}
+async function shareWeek(date) {
+  const text = weekSummary(date).text;
+  try { if (navigator.share) { await navigator.share({text}); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(text); toast('已复制，去微信粘贴'); } catch (e) { toast('复制不了，请截图'); }
+}
+/* 一键备份：生成备份文件，用系统分享发到微信等；只有真正发出去才记"已备份" */
+async function doBackup() {
+  const text = exportBackup(), name = '学习打卡备份_' + todayIso() + '.json';
+  try {
+    const f = new File([text], name, {type: 'application/json'});
+    if (navigator.canShare && navigator.canShare({files: [f]})) { await navigator.share({files: [f], title: name}); markBackup(); toast('备份已发出 ✅'); return true; }
+  } catch (e) { if (e && e.name === 'AbortError') return true; }
+  return false;
 }
 /* ---------- 今天：一张总览卡 + 按时段的时间表；全部必做，点任务进对应的学习页 ---------- */
 const GO_TASK = {review: 'review', listen: 'media', word: 'card', ket: 'ket', wenyan: 'wenyan', dict: 'dict'};
@@ -1134,9 +1205,9 @@ async function today() {
   let x = `<div class="row between" style="margin-top:6px;align-items:flex-end">
       <div><div class="sub">${hello}</div><h1>${md(d.date)} ${WD[d.weekday]}</h1></div>
       <div class="row" style="gap:6px;margin-bottom:4px"><span class="chip" style="color:var(--gold)">⭐ ${d.stars}</span><span class="chip" style="color:var(--warn)">🔥 ${d.streak}</span></div></div>
-    <div class="row" style="gap:8px;margin-top:6px">${holidayName(d.date) ? `<span class="tag" style="background:var(--warn-soft);color:var(--warn)">${esc(holidayName(d.date))}</span>` : ''}
+    <div class="row" style="gap:8px;margin-top:6px">${isLite(d.date) ? '<span class="tag" style="background:var(--warn-soft);color:var(--warn)">🛟 保底模式</span>' : ''}${holidayName(d.date) ? `<span class="tag" style="background:var(--warn-soft);color:var(--warn)">${esc(holidayName(d.date))}</span>` : ''}
       <button class="link" id="prev">‹ 前一天</button>${isToday ? '' : '<button class="link" id="next">后一天 ›</button><button class="link" id="tod" style="color:var(--pri)">回到今天</button>'}</div>
-    ${backupDue() ? '<div class="warn" style="margin-top:12px">💾 超过 7 天没备份了，请家长到「家长」页点「导出备份」</div>' : ''}
+    ${backupDue() ? `<div class="warn bkup" id="bkNow" style="margin-top:12px">💾 ${DATA.lastBackup ? `已经 ${diffDays(todayIso(), DATA.lastBackup.slice(0, 10))} 天没备份了` : '还没备份过'}，<b>点这里一键发到微信</b>（发给文件传输助手）</div>` : ''}
     <div class="card hero-card"><div class="hero">${ring(cDone, cTotal)}
       <div style="flex:1;min-width:0"><h2>${cDone === cTotal ? '今天全部完成！' : `还差 ${cTotal - cDone} 项`}</h2>
       <div class="sub" style="margin-top:2px">${dl.claimed ? '今日奖励已兑现 ✅' : dl.unlocked ? (isToday ? '🎮 已解锁：去奖励页三选一' : '这天已完成') : '全部完成：⚔️试炼2局 / 🏆排位1局 / 📱手机20分钟'}</div>
@@ -1169,7 +1240,9 @@ async function today() {
       <div class="tt-mid"><b>${t.type === 'class' ? '<span class="tag cls">课</span>' : ''}${esc(t.label)}</b>${sb ? `<small>${sb}</small>` : ''}
         ${t.type === 'review' && pend.length ? `<small>${pend.map(v => `<span class="pill" data-rv="${v.day}">复习 Day ${v.day}</span>`).join('')}</small>` : ''}
         ${t.type === 'class' ? '' : `<span class="act">${act}</span>`}
-        ${t.type === 'class' ? '' : `<label class="mins" data-nogo="1">⏱ 用时<input type="number" inputmode="numeric" min="0" max="300" data-min="${t.id}" value="${minOf(d.date, t.id) ?? ''}" placeholder="—">分钟</label>`}</div>
+        ${t.type === 'class' ? '' : (() => { const run = DATA.timer && DATA.timer.date === d.date && DATA.timer.id === t.id;
+          return `<div class="mins" data-nogo="1">${run ? `<button class="tbtn on" data-tstop="${t.id}">⏸ <span class="tmr" data-t0="${DATA.timer.t}">00:00</span></button>` : t.done || !isToday ? '' : `<button class="tbtn" data-tstart="${t.id}">▶ 开始</button>`}
+            <label>⏱ 用时<input type="number" inputmode="numeric" min="0" max="300" data-min="${t.id}" value="${minOf(d.date, t.id) ?? ''}" placeholder="—">分钟</label></div>`; })()}</div>
       ${t.type === 'class' ? '' : `<span class="check" data-tick="1">${t.done ? '✓' : ''}</span>`}</div>`;
   };
   const rest = z => `<div class="rest tt-rest"><span>☕ 休息 ${z.dur} 分钟，喝水、站起来动一动</span></div>`;
@@ -1185,6 +1258,7 @@ async function today() {
     const open = !all && (nowG < 0 || gi >= nowG || todo.some(t => !t.done));
     x += `<details class="card grp" ${open ? 'open' : ''}><summary><span>${name}</span><span class="faint">${all ? '✓ 完成' : `${n}/${todo.length}`}</span></summary><div class="tts">${items.map(z => z.html).join('')}</div></details>`;
   });
+  if (isToday && isoWeekday(d.date) >= 6) x += weekCard(d.date);
   x += `<div class="row" style="gap:10px;margin-top:6px"><button class="btn soft block" id="openMedia" style="flex:1">📺 素材库</button><button class="btn soft block" id="share" style="flex:1">📤 发给家长</button></div>`;
   app.innerHTML = x;
 
@@ -1194,6 +1268,8 @@ async function today() {
     try { await navigator.clipboard.writeText(text); toast('已复制，去微信粘贴发给家长'); } catch (e) { toast('复制不了，请截图发给家长'); }
   };
   $('#openMedia').onclick = () => { state.mcat = 'en'; go('media'); };
+  if ($('#wsShare')) $('#wsShare').onclick = () => shareWeek(d.date);
+  if ($('#bkNow')) $('#bkNow').onclick = async () => { if (await doBackup()) render(); else { toast('这台设备发不了文件，请到「家长」页导出'); } };
   $('#openWeek').onclick = () => go('rewards');
   $('#prev').onclick = () => { state.date = addDays(state.date, -1); render(); };
   if ($('#next')) { $('#next').onclick = () => { state.date = addDays(state.date, 1); render(); }; $('#tod').onclick = () => { state.date = todayIso(); render(); }; }
@@ -1208,6 +1284,8 @@ async function today() {
     else if (g === 'review' && pend.length) { state.cardDay = pend[0].day; state.mode = 'zh'; state.deck = 'pet'; go('words'); }
   };
   $$('[data-rv]').forEach(el => el.onclick = e => { e.stopPropagation(); state.cardDay = +el.dataset.rv; state.mode = 'zh'; state.deck = 'pet'; go('words'); });
+  $$('[data-tstart]').forEach(b => b.onclick = e => { e.stopPropagation(); stopTimer(); DATA.timer = {date: d.date, id: b.dataset.tstart, t: Date.now()}; save(); chime(false); render(); });
+  $$('[data-tstop]').forEach(b => b.onclick = e => { e.stopPropagation(); const m = stopTimer(); toast(`停了，用时 ${m} 分钟`); render(); });
   $$('[data-min]').forEach(inp => { inp.onclick = e => e.stopPropagation(); inp.onchange = () => { setMin(d.date, inp.dataset.min, inp.value); inp.blur(); toast(inp.value ? `记下了：${inp.value} 分钟` : '已清空'); }; });
   $$('[data-task]').forEach(el => el.onclick = async e => {
     if (e.target.closest('[data-nogo]')) return;
@@ -1226,6 +1304,7 @@ async function toggleTask(task, on, type) {
     if (res.error === 'needpin') { if (pin !== undefined) return {error: '家长密码不对'}; askPin('补打卡（3 天前的要家长确认）', p => doIt(p)); return {}; }
     if (res.error) { if (pin === undefined) toast(res.error); return res; }
     const rs = rewardsState(state.date), after = rs.daily.unlocked;
+    if (on && DATA.timer && DATA.timer.date === state.date && DATA.timer.id === task) stopTimer();
     if (!on) { toast('已取消'); render(); return res; }
     const el = document.querySelector(`[data-task="${task}"] .check`), bx = el ? el.getBoundingClientRect() : {left: innerWidth / 2, top: innerHeight / 2, width: 0, height: 0};
     const cx = bx.left + bx.width / 2, cy = bx.top + bx.height / 2;
@@ -1375,10 +1454,32 @@ function judgeEn(alts, word) {
 let quiz = {};   // 本次自测结果：{序号: 'ok' | 'spell' | 'say' | 'no'}，切卡/切模式清空
 
 function deckSeg() {
-  return `<div class="seg" style="margin-top:8px">${[['pet', 'PET 新词'], ['ket', 'KET 复习']].map(([k, t]) => `<button data-deck="${k}" class="${(state.deck || 'pet') === k ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+  const nW = Object.keys(DATA.wrongBook || {}).length;
+  return `<div class="seg" style="margin-top:8px">${[['pet', 'PET 新词'], ['ket', 'KET 复习'], ['wrong', `错词本${nW ? ' ' + nW : ''}`]].map(([k, t]) => `<button data-deck="${k}" class="${(state.deck || 'pet') === k ? 'on' : ''}">${t}</button>`).join('')}</div>`;
 }
 function bindDeck() { $$('[data-deck]').forEach(b => b.onclick = () => { state.deck = b.dataset.deck; render(); scrollTo(0, 0); }); }
+/* 错词本：PET 自测答错、KET 点 ✗ 的词都收进来，会了就划掉 */
+function addWrong(w, src) { const b = DATA.wrongBook = DATA.wrongBook || {}, e = b[w.w] || {w: w.w, ipa: w.ipa || '', zh: w.zh || '', src, n: 0}; e.n++; e.last = todayIso(); b[w.w] = e; save(); }
+function unWrong(word) { const b = DATA.wrongBook || {}, e = b[word]; if (!e) return; if (e.n > 1) e.n--; else delete b[word]; save(); }
+function wrongView() {
+  const list = Object.values(DATA.wrongBook || {}).sort((a, b) => b.n - a.n || (b.last > a.last ? 1 : -1));
+  let x = deckSeg() + `<div class="card hero-card wd-hero wrong"><div class="row between" style="align-items:flex-start"><div><div class="sub">答错过的词都在这里，周末过一遍</div><h1 class="wd-h">错词本</h1></div><span class="wd-pet">🦊</span></div>
+    <div class="row" style="gap:6px;margin-top:8px"><span class="tag">共 ${list.length} 个</span>${list.length ? `<span class="tag">错得最多：${esc(list[0].w)}</span>` : ''}</div></div>`;
+  x += list.length ? `<div class="card" style="padding:4px 16px">` + list.map((w, i) => `<div class="wrow kr ${state.wrMasked === false ? '' : ''}"><span class="n">${i + 1}</span>
+      <div class="en"><b>${esc(w.w)}</b><span>${esc(w.ipa)}</span></div>
+      <div class="zh"><span class="${state.wrHide ? 'mask' : ''}" data-rev>${esc(w.zh)}</span><div class="faint" style="margin-top:2px">${w.src} · 错 ${w.n} 次</div></div>
+      <div class="row" style="gap:4px"><button class="say" data-say="${esc(w.w)}">🔊</button><button class="say" data-wok="${esc(w.w)}" style="background:var(--ok-soft);color:var(--ok)">✓</button></div></div>`).join('') +
+      `</div><div class="row" style="gap:10px"><button class="btn soft sm" id="wrHide">${state.wrHide ? '显示中文' : '遮住中文自测'}</button></div><div class="faint" style="margin:10px 4px">点 ✓ = 这个词会了，错几次就要点几次才会移出</div>`
+    : '<div class="card"><h2>还没有错词 🎉</h2><div class="sub" style="margin-top:6px">PET 自测答错、KET 复习点 ✗ 的词会自动收进来。</div></div>';
+  app.innerHTML = x;
+  bindDeck();
+  $$('[data-say]').forEach(b => b.onclick = () => { sayEn(b.dataset.say); b.classList.add('playing'); setTimeout(() => b.classList.remove('playing'), 1400); });
+  $$('[data-wok]').forEach(b => b.onclick = () => { unWrong(b.dataset.wok); chime(false); render(); });
+  $$('[data-rev]').forEach(el => el.onclick = () => el.classList.remove('mask'));
+  if ($('#wrHide')) $('#wrHide').onclick = () => { state.wrHide = !state.wrHide; render(); };
+}
 async function words() {
+  if (state.deck === 'wrong') return wrongView();
   if (state.deck === 'ket') return ketView();
   const list = await api('/api/words');
   const day = state.cardDay || list.current || 1;
@@ -1432,7 +1533,7 @@ async function words() {
   const judge = (i, alts) => {
     const w = card.words[i];
     const r = m === 'zh' ? (judgeZh(alts, w.zh) ? 'ok' : 'no') : (judgeEn(alts, w.w) || 'no');
-    quiz[i] = r; quiz._last = i;
+    quiz[i] = r; quiz._last = i; if (r === 'no') addWrong(w, 'PET');
     quiz['h' + i] = m === 'en' && /^([a-z][\s\-.,]+){2,}[a-z]\W*$/i.test(alts[0].trim()) ? alts[0].trim().replace(/[\s.,]+/g, '-').replace(/-+/g, '-').toLowerCase() : alts[0];
     const ok = Object.entries(quiz).filter(([k, v]) => /^\d+$/.test(k) && v !== 'no').length;
     const res = LOCAL['POST /api/wordtest']({day, ok});
@@ -1460,7 +1561,7 @@ async function words() {
   });
   $$('[data-go]').forEach(b => b.onclick = () => { const i = +b.dataset.go, v = document.querySelector(`[data-in="${i}"] input`).value.trim(); if (v) judge(i, [v]); });
   $$('[data-in] input').forEach(inp => { const i = +inp.closest('[data-in]').dataset.in; autoSubmit(inp, v => judge(i, [v])); });
-  $$('[data-fix]').forEach(a => a.onclick = e => { e.preventDefault(); quiz[+a.dataset.fix] = 'ok'; render(); });
+  $$('[data-fix]').forEach(a => a.onclick = e => { e.preventDefault(); quiz[+a.dataset.fix] = 'ok'; unWrong(card.words[+a.dataset.fix].w); render(); });
   if ($('#qreset')) $('#qreset').onclick = () => { quiz = {}; render(); };
   $$('[data-day]').forEach(b => b.onclick = () => { state.cardDay = +b.dataset.day; render(); scrollTo(0, 0); });
   $('#pd').onclick = () => { state.cardDay = day - 1; render(); scrollTo(0, 0); };
@@ -1494,7 +1595,7 @@ async function ketView() {
   $$('[data-say]').forEach(b => b.onclick = () => { sayEn(b.dataset.say); b.classList.add('playing'); setTimeout(() => b.classList.remove('playing'), 1400); });
   $$('[data-k]').forEach(b => b.onclick = async () => {
     const [i, ok1] = b.dataset.k.split(':').map(Number), w = items[i];
-    marks[w.w] = ok1; state.ketLast = i; await api('/api/ket/result', {item: w, ok: !!ok1});
+    marks[w.w] = ok1; state.ketLast = i; if (!ok1) addWrong(w, 'KET'); await api('/api/ket/result', {item: w, ok: !!ok1});
     if (!s.finished && items.every(v => v.w in marks)) { await api('/api/ket/finish', {day: s.day}); toast('🎉 今天的 KET 复习完成 +2⭐'); }
     render();
   });
@@ -1693,11 +1794,11 @@ async function rewards() {
       <div class="sub" style="margin-top:10px">${weekText(wk, t)}</div>
       ${wk.usable && !wk.claimed ? '<button class="btn" id="cW" style="margin-top:14px">找家长兑现</button>' : ''}</div>
 
-    <div class="rw rw-g ${ready.length ? 'on' : ''}"><div class="row between"><span class="tag">成长大奖</span><span class="faint">连续 ${bg.need} 天不缺勤</span></div>
-      <div class="big">${ready.length ? '🎉 大奖解锁！' : `🔥 已坚持 ${bg.prog} 天`}</div>
-      <div class="charge ${ready.length ? 'full' : ''}" style="height:30px"><i style="width:${ready.length ? 100 : Math.max(4, bg.prog / bg.need * 100)}%"></i><b style="font-size:13px">${ready.length ? '选一个，找家长兑现' : `${bg.prog} / ${bg.need} 天 · 再坚持 ${bg.need - bg.prog} 天`}</b></div>
+    <div class="rw rw-g ${ready.length ? 'on' : ''}"><div class="row between"><span class="tag">成长大奖</span><span class="faint">累计 ${bg.need} 天全部完成</span></div>
+      <div class="big">${ready.length ? '🎉 大奖解锁！' : `🔥 已累计 ${bg.prog} 天`}</div>
+      <div class="charge ${ready.length ? 'full' : ''}" style="height:30px"><i style="width:${ready.length ? 100 : Math.max(4, bg.prog / bg.need * 100)}%"></i><b style="font-size:13px">${ready.length ? '选一个，找家长兑现' : `${bg.prog} / ${bg.need} 天 · 还差 ${bg.need - bg.prog} 天`}</b></div>
       <div class="opts">${BIG_OPTS.map(([k, ic, nm], i) => `<button class="opt ${ready.length ? 'ready' : ''}" data-bopt="${k}" style="--d:${i * 0.12}s" ${ready.length ? '' : 'disabled'}><span class="oi">${ic}</span>${nm}</button>`).join('')}</div>
-      <div class="faint" style="margin-top:10px">每天全部完成算 1 天，断一天就重新数</div></div>
+      <div class="faint" style="margin-top:10px">每天全部完成算 1 天，中间断了也不清零，攒满 30 天就能选</div></div>
 
     <div class="card" id="badges"><div class="row between"><h2>🏅 徽章墙</h2><span class="faint">${got} / ${bs.length}</span></div>
       <div class="badges">${bs.map(b => `<div class="badge ${b.got ? '' : 'off'}" title="${esc(b.desc)}"><div class="bi">${b.ic}</div>${esc(b.name)}<small>${b.got ? '已获得' : `${b.n}/${b.need}`}</small></div>`).join('')}</div></div>`;
@@ -1716,6 +1817,11 @@ async function rewards() {
   $('#toBadges').onclick = () => $('#badges').scrollIntoView({behavior: 'smooth'});
 }
 
+/* 家长页「任务设置」一行 */
+function tcRow(id) {
+  const tc = settings().taskCfg || {}, on = !(tc.off || {})[id];
+  return `<div class="tcr" data-tc="${id}"><input type="checkbox" ${on ? 'checked' : ''}><input class="tcn" placeholder="${esc(LABEL[id])}" value="${esc((tc.names || {})[id] || '')}"><button class="icon-btn" data-up>↑</button><button class="icon-btn" data-dn>↓</button></div>`;
+}
 /* ---------- 家长 ---------- */
 async function parent() {
   const s = await api('/api/stats');
@@ -1749,7 +1855,7 @@ async function parent() {
         <div class="sub" style="margin-top:4px">今天用时 <b style="color:#fff" class="cnt" data-to="${todayMin}">${todayMin}</b> 分钟${todayMinN ? `（填了 ${todayMinN} 项）` : ''}</div></div></div>
       ${left.length ? `<div class="chips">${left.map(z => `<span>${esc(z.label)}</span>`).join('')}</div>` : ''}
       <div class="pstat"><div><b class="cnt" data-to="${s.streak}">${s.streak}</b>连续天</div><div><b class="cnt" data-to="${bestStreak()}">${bestStreak()}</b>最长连续</div><div><b>${L.ic}</b>Lv${L.lv} ${L.name}</div><div><b class="cnt" data-to="${s.earned}">${s.earned}</b>星星</div></div></div>
-    ${minCard}${rewardCard}
+    ${weekCard(t)}${minCard}${rewardCard}
     ${s.reviews_pending ? `<div class="warn">📌 有 ${s.reviews_pending} 张单词卡到了复习时间还没复习</div>` : ''}
     <div class="card"><h2>最近 7 天</h2>
       <div class="d7">${days7.map(d => { const [n, tot] = dayProgress(d), f = coreFull(d); return `<div><i class="${f ? 'full' : d === t ? 'today' : n ? 'part' : ''}" style="--p:${tot ? n / tot : 0}">${f ? '✓' : tot ? Math.round(n / tot * 100) + '%' : ''}</i>${'日一二三四五六'[new Date(d + 'T00:00').getDay()]}</div>`; }).join('')}</div>
@@ -1762,6 +1868,13 @@ async function parent() {
     <details class="card grp"><summary><span>⭐ 星星明细</span><span class="faint">共 ${s.earned} 颗</span></summary>
       ${s.recent.slice(0, 15).map(r => `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><span style="font-size:14px">${esc(r.note)}</span><span class="faint">${r.date.slice(5).replace('-', '/')} +${r.amount}</span></div>`).join('') || '<div class="faint" style="padding-bottom:12px">还没有</div>'}</details>
 
+    <div class="card"><div class="row between"><h2>🛟 保底模式</h2><span class="tag" style="${isLite(t) ? 'background:var(--warn-soft);color:var(--warn)' : ''}">${isLite(t) ? '今天已开启' : '未开启'}</span></div>
+      <div class="sub" style="margin:4px 0 12px">有晚课、太累或生病时用：今天只做「学校作业 + PET 单词 + 阅读」，做完就算全部完成，奖励和连续天数照算。</div>
+      <button class="btn ${isLite(t) ? 'soft' : ''} sm" id="liteBtn">${isLite(t) ? '关掉，恢复完整任务' : '今天开启保底模式'}</button></div>
+    <details class="card grp" id="tcBox"><summary><span>📝 任务设置（晚上）</span><span class="faint">开关 · 改名 · 排序</span></summary>
+      <div class="sub" style="margin:2px 0 8px">关掉的任务就不出现；名字留空用默认；↑↓ 调顺序。保存要家长密码。</div>
+      <div id="tcList">${eveOrder().map(id => tcRow(id)).join('')}</div>
+      <div class="row" style="margin:12px 0 14px"><button class="btn sm" id="tcSave">保存</button><button class="btn soft sm" id="tcReset">恢复默认</button></div></details>
     <details class="setbox"><summary class="sec-title">⚙️ 设置、素材链接与备份</summary>
     <div class="card"><h2>📺 素材库链接</h2>
       ${listenLinks().map((l, k) => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--line)"><span>${CATS.find(c => c[0] === catOf(l))[1]} ${esc(l.name)}</span><button class="btn soft sm" data-ldel="${k}">删除</button></div>`).join('') || '<div class="sub" style="margin-top:4px">还没有</div>'}
@@ -1788,15 +1901,20 @@ async function parent() {
   $('#pkGo').onclick = () => { const v = $('#pk').value; if (!v.trim()) { toast('请先粘贴'); return; } askPin('导入设置 / 链接包', async p => { if (String(p) !== String(pin())) return {error: '家长密码不对'}; if (!applySetupCode(v)) return {error: '内容不完整，请重新复制整条'}; toast('导入成功'); render(); return {ok: true}; }); };
   $$('[data-ldel]').forEach(b => b.onclick = () => askPin('删除这个链接', async p => { const r = await api('/api/listen/del', {pin: p, idx: b.dataset.ldel}); if (!r.error) { toast('已删除'); render(); } return r; }));
   $('#setpin').onclick = () => { const v = $('#np').value; if (v.trim().length < 4) { toast('新密码至少 4 位'); return; } askPin('先输入原密码', async p => { const r = await api('/api/pin', {pin: p, newpin: v}); if (!r.error) { toast('密码已修改'); render(); } return r; }); };
-  $('#exp').onclick = async () => {
-    const text = exportBackup(), name = '学习打卡备份_' + todayIso() + '.json';
-    markBackup();
-    try {
-      const f = new File([text], name, {type: 'application/json'});
-      if (navigator.canShare && navigator.canShare({files: [f]})) { await navigator.share({files: [f], title: name}); return; }
-    } catch (e) { if (e && e.name === 'AbortError') return; }
-    $('#bk').value = text; $('#bk').select(); toast('已放到下面文本框，请全选复制保存');
-  };
+  if ($('#wsShare')) $('#wsShare').onclick = () => shareWeek(t);
+  $('#liteBtn').onclick = () => askPin(isLite(t) ? '关掉保底模式' : '今天开启保底模式', async p => {
+    if (String(p) !== String(pin())) return {error: '家长密码不对'};
+    DATA.lite = DATA.lite || {}; if (isLite(t)) delete DATA.lite[t]; else DATA.lite[t] = 1; save(); refreshBonus(t); toast(isLite(t) ? '今天只做 3 项 🛟' : '已恢复完整任务'); render(); return {};
+  });
+  $('#tcList').onclick = e => { const b = e.target.closest('[data-up],[data-dn]'); if (!b) return; const r = b.closest('.tcr'), sib = b.hasAttribute('data-up') ? r.previousElementSibling : r.nextElementSibling; if (!sib) return; b.hasAttribute('data-up') ? r.parentNode.insertBefore(r, sib) : r.parentNode.insertBefore(sib, r); };
+  $('#tcSave').onclick = () => askPin('保存任务设置', async p => {
+    if (String(p) !== String(pin())) return {error: '家长密码不对'};
+    const rows = $$('#tcList .tcr'), cfg = {order: rows.map(r => r.dataset.tc), off: {}, names: {}};
+    rows.forEach(r => { const [cb, nmI] = r.querySelectorAll('input'); if (!cb.checked) cfg.off[r.dataset.tc] = 1; if (nmI.value.trim()) cfg.names[r.dataset.tc] = nmI.value.trim(); });
+    settings().taskCfg = cfg; save(); toast('任务设置已保存'); render(); return {};
+  });
+  $('#tcReset').onclick = () => askPin('恢复默认任务', async p => { if (String(p) !== String(pin())) return {error: '家长密码不对'}; delete settings().taskCfg; save(); toast('已恢复默认'); render(); return {}; });
+  $('#exp').onclick = async () => { if (!(await doBackup())) { $('#bk').value = exportBackup(); $('#bk').select(); toast('已放到下面文本框，请全选复制保存'); } };
   $('#impf').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { importBackup(await f.text()); toast('恢复成功'); render(); } catch (err) { toast(err.message || '文件不对'); } };
   $('#impt').onclick = () => { try { importBackup($('#bk').value.trim()); toast('恢复成功'); render(); } catch (err) { toast(err.message || '内容不对'); } };
 }
