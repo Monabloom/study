@@ -437,6 +437,17 @@ nav button.on svg{background:var(--pri-soft);animation:hop .45s cubic-bezier(.3,
 
 .wd-hero.wrong{background:linear-gradient(135deg,#fb923c 0%,#f43f5e 55%,#a855f7 100%);box-shadow:0 10px 30px rgba(244,63,94,.25)}
 .seg button{white-space:nowrap}
+
+.dm{max-height:86vh;overflow:auto}
+.dmw{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dmc{border:0;border-radius:14px;padding:10px 12px;background:var(--bg);color:var(--ink);font:inherit;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px;transition:transform .12s,background .2s}
+.dmc b{font-size:16px}.dmc small{font-size:12px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dmc:active{transform:scale(.95)}
+.dmc.bad{background:#fee2e2;color:#dc2626;box-shadow:inset 0 0 0 2px #f87171;animation:shake .35s}
+.dmc.bad small{color:#ef4444}
+.dmbtn{margin-top:12px;background:linear-gradient(90deg,#f59e0b,#ef4444)}
+@media (prefers-color-scheme:dark){.dmc.bad{background:#3b1414;color:#fca5a5}}
+.dm>.row:last-child{position:sticky;bottom:-20px;background:var(--card);padding:10px 0 4px;margin-bottom:-4px}
 </style>
 </head>
 <body>
@@ -481,13 +492,13 @@ const diffDays = (a, b) => Math.round((new Date(a + 'T00:00') - new Date(b + 'T0
 
 /* 固定学习任务（不含任何课程信息），课程从课表同步进来；全部必做，按时长自动排时间表并留出休息 */
 const LABEL = {listen: '英语听力 1 篇', ket: 'KET 单词复习 20 个', wenyan: '文言文背诵 1 篇', homework: '学校作业', eread: '英语阅读 1 篇', abc: 'ABC Reading 1 篇', word: 'PET 单词 20 个', math: '数学计算 2 页',
-  hwfri: '周六日课的作业', bedread: '阅读 20 分钟', sport: '户外 / 篮球', ewrite: '英文小作文 3～5 句', dict: '拼写听写', goodsent: '好句积累：抄 2 句、仿写 1 句'};
+  hwfri: '周六日课的作业', erecite: '背诵英语短文 1 篇', bedread: '阅读 20 分钟', sport: '户外 / 篮球', ewrite: '英文小作文 3～5 句', dict: '拼写听写', goodsent: '好句积累：抄 2 句、仿写 1 句'};
 const TYPE = {word: 'word', ket: 'ket', wenyan: 'wenyan', dict: 'dict', review: 'review'};
 const DUR = {review: 10, listen: 10, ket: 10, wenyan: 10, homework: 50, eread: 15, abc: 10, hwfri: 60, word: 20, math: 5, bedread: 20, sport: 60, ewrite: 15, dict: 10, goodsent: 15};   // 分钟（11/18 家长定）
 /* 晚上（11/19 家长定，不写时间只按顺序列）：作业 → 英语阅读 1 篇 → 英语听力 1 篇 → ABC（周一到五 1 本、周末 2 本）→ 休 10 → PET 20 + KET 20（+到期旧卡）→ 数学计算 5 分钟 → 21:50 语文阅读 20 → 22:10 睡
    周五：先做周六日课的作业，再背单词，其余不排；[任务, 做完后休息分钟] */
 const EVENING = [['homework', 0], ['eread', 0], ['listen', 0], ['abc', 0], ['math', 0], ['word', 0], ['ket', 0], ['wenyan', 0]];   // 11/19 家长定顺序：作业→英语阅读→听力→ABC→数学计算2页→PET→KET(→旧卡)→文言文背诵→阅读
-const FRIDAY = [['hwfri', 10], ['word', 0], ['ket', 0]];
+const FRIDAY = [['hwfri', 10], ['word', 0], ['ket', 0], ['erecite', 0]];   // 11/20 家长加：周五背一篇英语短文
 const DROP = ['abc', 'listen', 'eread', 'math', 'review', 'ket'];   // 有晚课排不下时依次挪掉（晚课都是英语外教，先挪英语项）
 const WEEKEND_EXTRA = ['sport', 'ewrite', 'dict', 'goodsent'];   // 周末加的几项：照常列出、单独给星星，不算进当天奖励
 const LUNCH = ['12:00', '13:30'];   // 有课排不下时依次挪掉（当天不出现）
@@ -613,7 +624,7 @@ function planFor(date) {
   let base = eveOrder().filter(id => !off[id]);
   const lite = isLite(date);   // 保底模式：只做 作业 + PET 单词 + 阅读
   if (lite) base = base.filter(id => LITE.includes(id));
-  let eve = fri ? FRIDAY.filter(c => (c[0] !== 'hwfri' || weekendClass) && !off[c[0]] && (!lite || c[0] !== 'ket')) : base.map(id => [id, 0]);
+  let eve = fri ? FRIDAY.filter(c => (c[0] !== 'hwfri' || weekendClass) && !off[c[0]] && (!lite || !['ket', 'erecite'].includes(c[0]))) : base.map(id => [id, 0]);
   const nRev = reviewsDue(date).length;   // 到期的旧单词卡（记忆曲线），每张约 5 分钟
   if (nRev && !lite) { const k = eve.findIndex(c => c[0] === 'ket'); if (k >= 0) eve.splice(k + 1, 0, ['review', 0]); }
   if (kind !== 'school' && !fri) {   // 周末 / 假日：学校作业放白天第一个整块空档，晚上不再排
@@ -1028,8 +1039,35 @@ LOCAL['POST /api/ket/result'] = b => {
   }
   save(); return {ok: true};
 };
+/* 纸质听写打勾（11/20 家长要）：孩子背纸质单词卡、家长报听写，在程序里点出写错的词就算完成；
+   写错的词进「生词循环」（和 KET 生词同一套记忆曲线：第 2、4、7、15、30 天在 KET 复习里再出现）+ 错词本 */
+function addWrongBook(w, src) { const bk = DATA.wrongBook = DATA.wrongBook || {}, e = bk[w.w] || {w: w.w, ipa: w.ipa || '', zh: w.zh || '', src, n: 0}; e.n++; e.last = todayStr(); bk[w.w] = e; }
+LOCAL['POST /api/dictmark'] = b => {
+  const date = b.date || todayStr(), deck = b.deck, day = +b.day, wrong = new Set(b.wrong || []);   // 可补昨天
+  const miss = w => { LOCAL['POST /api/ket/result']({item: w, ok: false}); addWrongBook(w, deck === 'ket' ? 'KET' : 'PET'); };
+  if (deck === 'ket') {
+    const ks = ketSession(date);
+    [...ks.due, ...ks.words].forEach(w => wrong.has(w.w) ? miss(w) : LOCAL['POST /api/ket/result']({item: w, ok: true}));
+    if (!ks.finished && ks.day) LOCAL['POST /api/ket/finish']({day: ks.day, date});
+  } else {
+    const words = (CARDS[day - 1] || {words: []}).words;
+    words.filter(w => wrong.has(w.w)).forEach(miss);
+    DATA.wordTest = DATA.wordTest || {}; const r = DATA.wordTest[day] || {best: 0}; r.paper = {date, wrong: wrong.size}; DATA.wordTest[day] = r;
+    if (deck === 'pet') {
+      const wt = tasksFor(date).find(t => t.type === 'word');
+      if (wt && !learnedOn(date) && currentCard() === day) {
+        DATA.taskDone[date] = DATA.taskDone[date] || {}; DATA.taskDone[date][wt.id] = Date.now(); star(`task:${date}:${wt.id}`, 2, date, wt.label);
+        DATA.wordLearn[day] = date; refreshBonus(date);
+      }
+    }
+    const due = reviewsDue(date).find(v => v.day === day && !v.done);
+    if (due && deck !== 'pet') { DATA.wordReview[day + ':' + due.stage] = date; star(`review:${day}:${due.stage}`, 1, date, `复习 Day ${day}（${due.name}）`); }
+    syncReview(date);
+  }
+  save(); return {ok: true, n: wrong.size};
+};
 LOCAL['POST /api/ket/finish'] = b => {
-  const st = ketState(), date = todayStr(), day = +b.day;
+  const st = ketState(), date = b.date || todayStr(), day = +b.day;
   if (!st.done[day]) st.done[day] = date;
   const t = tasksFor(date).find(x => x.type === 'ket');
   if (t) { DATA.taskDone[date] = DATA.taskDone[date] || {}; DATA.taskDone[date][t.id] = Date.now(); star(`task:${date}:${t.id}`, 2, date, 'KET 复习 Day ' + day); refreshBonus(date); }
@@ -1188,6 +1226,30 @@ async function doBackup() {
   } catch (e) { if (e && e.name === 'AbortError') return true; }
   return false;
 }
+/* 纸质听写打勾：列出今天这组词，家长点出写错的，点完成就算这项做完；错的进生词循环 + 错词本 */
+function openDictMark(deck, day) {
+  const t = state.view === 'today' ? state.date : todayIso();   // 在今天页补昨天的也行
+  const words = deck === 'ket' ? (() => { const ks = ketSession(t); return [...ks.due, ...ks.words]; })() : (CARDS[day - 1] || {words: []}).words;
+  const title = deck === 'ket' ? `KET 复习${ketSession(t).day ? ' Day ' + ketSession(t).day : ''}` : deck === 'review' ? `复习 Day ${day}` : `PET Day ${day}`;
+  if (!words.length) { toast('今天没有要听写的词'); return; }
+  const bg = document.createElement('div'); bg.className = 'sheet-bg';
+  bg.innerHTML = `<div class="sheet dm"><h2>📝 ${esc(title)} · 听写结果</h2>
+    <p class="sub" style="margin:6px 0 10px">点一下<b>写错 / 不会</b>的词（变红）。全对就直接点完成。错的会在后面几天自动再出现。</p>
+    <div class="dmw">${words.map(w => `<button class="dmc" data-w="${esc(w.w)}"><b>${esc(w.w)}</b><small>${esc(w.zh)}</small></button>`).join('')}</div>
+    <div class="row" style="margin-top:14px"><button class="btn soft block" id="dmApp">在程序里自测</button><button class="btn block" id="dmOk">完成 · 全对</button></div></div>`;
+  document.body.appendChild(bg);
+  const upd = () => { const n = bg.querySelectorAll('.dmc.bad').length; bg.querySelector('#dmOk').textContent = n ? `完成 · 错 ${n} 个` : '完成 · 全对'; };
+  bg.querySelectorAll('.dmc').forEach(c => c.onclick = () => { c.classList.toggle('bad'); upd(); });
+  bg.onclick = e => { if (e.target === bg) bg.remove(); };
+  bg.querySelector('#dmApp').onclick = () => { bg.remove(); state.deck = deck === 'ket' ? 'ket' : 'pet'; if (deck !== 'ket') { state.cardDay = day; state.mode = 'zh'; } go('words'); };
+  bg.querySelector('#dmOk').onclick = async () => {
+    const wrong = [...bg.querySelectorAll('.dmc.bad')].map(c => c.dataset.w), before = rewardsState(t).daily.unlocked;
+    LOCAL['POST /api/dictmark']({deck, day, wrong, date: t}); bg.remove();
+    await render(); chime(false); confetti(innerWidth / 2, innerHeight / 3, 22);
+    if (!before && rewardsState(t).daily.unlocked) bigCelebrate('🎮', '今天全部完成！', '试炼 2 局 / 排位 1 局 / 手机 20 分钟，自己选一个；周末再 +15 分钟', '去选奖励', () => go('rewards'));
+    else toast(wrong.length ? `记下了：${wrong.length} 个错词进入循环复习 🔁` : '全对！太棒了 🎉');
+  };
+}
 /* ---------- 今天：一张总览卡 + 按时段的时间表；全部必做，点任务进对应的学习页 ---------- */
 const GO_TASK = {review: 'review', listen: 'media', word: 'card', ket: 'ket', wenyan: 'wenyan', dict: 'dict'};
 async function today() {
@@ -1229,7 +1291,7 @@ async function today() {
   /* 任务做成方块（参照文言文板块）；图标用小动物等更有趣的（PET=小狗、KET=小猫 谐音） */
   const ICO = {homework: ['🎒', '#fff1e6'], hwfri: ['🎒', '#fff1e6'], eread: ['🦉', '#e8f3ff'], listen: ['🦜', '#eaf8ee'], abc: ['🐝', '#fff8d9'], word: ['🐶', '#ffeef3'],
     ket: ['🐱', '#eef1ff'], review: ['🃏', '#fff7e0'], math: ['🧮', '#e6f7fb'], bedread: ['🌙', '#f0ebff'], wenyan: ['🐉', '#f6efe4'], sport: ['🏀', '#fff0e3'],
-    ewrite: ['🖍️', '#eef6ff'], dict: ['🎤', '#f3ecff'], goodsent: ['💎', '#e6f7fb']};
+    ewrite: ['🖍️', '#eef6ff'], erecite: ['🐬', '#e6f4ff'], dict: ['🎤', '#f3ecff'], goodsent: ['💎', '#e6f7fb']};
   let ri = 0;
   const row = t => {
     const [em, bgc] = t.type === 'class' ? ['🏫', '#fff5dc'] : ICO[t.id] || ICO[t.type] || ['⭐', '#efeffd'];
@@ -1298,9 +1360,9 @@ async function toggleTask(task, on, type) {
     const before = rewardsState(state.date).daily.unlocked;
     const res = await api('/api/task', {date: state.date, task, done: on, pin});
     if (res.error === 'needdict') { state.view = 'dict'; state.di = 0; render(); scrollTo(0, 0); return res; }
-    if (res.error === 'needreview') { toast('点开要复习的卡自测，都复习完自动打勾'); state.cardDay = res.day; state.mode = 'zh'; state.deck = 'pet'; go('words'); return res; }
-    if (res.error === 'needket') { toast('先把 KET 复习过一遍，完成后自动打勾'); state.deck = 'ket'; go('words'); return res; }
-    if (res.error === 'needtest') { toast(`先去自测，对 ${PASS} 个就自动打勾`); state.cardDay = res.day; state.mode = 'zh'; state.deck = 'pet'; go('words'); return res; }
+    if (res.error === 'needreview') { openDictMark('review', res.day); return res; }
+    if (res.error === 'needket') { openDictMark('ket'); return res; }
+    if (res.error === 'needtest') { openDictMark('pet', res.day); return res; }
     if (res.error === 'needpin') { if (pin !== undefined) return {error: '家长密码不对'}; askPin('补打卡（3 天前的要家长确认）', p => doIt(p)); return {}; }
     if (res.error) { if (pin === undefined) toast(res.error); return res; }
     const rs = rewardsState(state.date), after = rs.daily.unlocked;
@@ -1459,7 +1521,7 @@ function deckSeg() {
 }
 function bindDeck() { $$('[data-deck]').forEach(b => b.onclick = () => { state.deck = b.dataset.deck; render(); scrollTo(0, 0); }); }
 /* 错词本：PET 自测答错、KET 点 ✗ 的词都收进来，会了就划掉 */
-function addWrong(w, src) { const b = DATA.wrongBook = DATA.wrongBook || {}, e = b[w.w] || {w: w.w, ipa: w.ipa || '', zh: w.zh || '', src, n: 0}; e.n++; e.last = todayIso(); b[w.w] = e; save(); }
+function addWrong(w, src) { addWrongBook(w, src); save(); }
 function unWrong(word) { const b = DATA.wrongBook || {}, e = b[word]; if (!e) return; if (e.n > 1) e.n--; else delete b[word]; save(); }
 function wrongView() {
   const list = Object.values(DATA.wrongBook || {}).sort((a, b) => b.n - a.n || (b.last > a.last ? 1 : -1));
@@ -1496,6 +1558,7 @@ async function words() {
       <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:8px"><span class="tag">${meta.learned ? '✓ 已背 ' + meta.learned.slice(5).replace('-', '/') : day === list.current ? '⭐ 今天要背' : '未背'}</span>${meta.learned ? ['次日', '第4天', '第7天', '第15天', '第30天'].map((n, i) => `<span class="rvd ${meta.reviews.includes(i + 1) ? 'on' : ''}">${meta.reviews.includes(i + 1) ? '✓' : ''}${n}</span>`).join('') : ''}</div>
       <div class="row between" style="margin-top:14px"><span class="sub">PET 单词卡 ${learnedN} / ${list.cards.length}</span><span class="sub">${Math.round(learnedN / list.cards.length * 100)}%</span></div>
       <div class="bar wd-bar"><i style="width:${learnedN / list.cards.length * 100}%"></i></div></div>
+    ${(!meta.learned && day === list.current) || reviewsDue(todayIso()).some(v => v.day === day && !v.done) ? `<button class="btn block dmbtn" id="dmGo">📝 纸质听写打勾（点出写错的词）</button>` : ''}
     <div class="seg" style="margin:14px 0">${[['all', '跟读'], ['zh', '遮中文 · 说中文'], ['en', '遮英文 · 说英文']].map(([k, t]) => `<button data-mode="${k}" class="${m === k ? 'on' : ''}">${t}</button>`).join('')}</div>
     <div class="faint" style="margin:0 4px">${m === 'all' ? '点 🔊 听发音，跟读两遍，每个词说一句话' : m === 'zh' ? '点 🔊 听英文，再点 🎤 用中文说出意思' : '看中文，点 🎤 一个字母一个字母拼出来（直接说单词也算想起来了）'}</div>
     ${(() => { const due = reviewsDue(todayIso()).find(v => v.day === day && !v.done);
@@ -1530,6 +1593,7 @@ async function words() {
   const y = scrollY;
   app.innerHTML = x;
   scrollTo(0, y);
+  if ($('#dmGo')) $('#dmGo').onclick = () => openDictMark(!meta.learned && day === list.current ? 'pet' : 'review', day);
   const judge = (i, alts) => {
     const w = card.words[i];
     const r = m === 'zh' ? (judgeZh(alts, w.zh) ? 'ok' : 'no') : (judgeEn(alts, w.w) || 'no');
@@ -1575,7 +1639,8 @@ async function ketView() {
   const items = [...s.due.map(w => ({...w, due: true})), ...s.words];
   const n = items.filter(w => w.w in marks).length, ok = items.filter(w => marks[w.w] === 1).length;
   let x = deckSeg() + `<div class="card hero-card wd-hero ket"><div class="row between" style="align-items:flex-start"><div><div class="sub">以前背过的，快速过一遍</div><h1 class="wd-h">KET 复习${s.day ? ' Day ' + s.day : ''}</h1></div><span class="wd-pet">🐱</span></div>
-    <div class="row" style="gap:6px;margin-top:8px"><span class="tag">共 ${s.total} 天</span>${s.due.length ? `<span class="tag">🔁 ${s.due.length} 个生词</span>` : ''}</div></div>`;
+    <div class="row" style="gap:6px;margin-top:8px"><span class="tag">共 ${s.total} 天</span>${s.due.length ? `<span class="tag">🔁 ${s.due.length} 个生词</span>` : ''}</div></div>
+    ${s.day && !s.finished ? '<button class="btn block dmbtn" id="dmGo">📝 纸质听写打勾（点出写错的词）</button>' : ''}`;
   if (!s.day) x += '<div class="card">KET 词汇全部复习完了 🎉</div>';
   else {
     x += `<div class="card" style="padding:14px 18px"><div class="row between"><b>${s.finished ? '今天的 KET 复习完成 ✅' : `已过 ${n}/${items.length}`}</b><span class="faint">认识 ${ok} 个</span></div>
@@ -1593,6 +1658,7 @@ async function ketView() {
   app.innerHTML = x; scrollTo(0, y);
   bindDeck();
   $$('[data-say]').forEach(b => b.onclick = () => { sayEn(b.dataset.say); b.classList.add('playing'); setTimeout(() => b.classList.remove('playing'), 1400); });
+  if ($('#dmGo')) $('#dmGo').onclick = () => openDictMark('ket');
   $$('[data-k]').forEach(b => b.onclick = async () => {
     const [i, ok1] = b.dataset.k.split(':').map(Number), w = items[i];
     marks[w.w] = ok1; state.ketLast = i; if (!ok1) addWrong(w, 'KET'); await api('/api/ket/result', {item: w, ok: !!ok1});
