@@ -449,6 +449,7 @@ nav button.on svg{background:var(--pri-soft);animation:hop .45s cubic-bezier(.3,
 @media (prefers-color-scheme:dark){.dmc.bad{background:#3b1414;color:#fca5a5}}
 .dm>.row:last-child{position:sticky;bottom:-20px;background:var(--card);padding:10px 0 4px;margin-bottom:-4px}
 .say.mk{opacity:.55}.say.mk.sel{opacity:1;box-shadow:inset 0 0 0 2px currentColor}
+.daynav{border:0;border-radius:99px;padding:7px 14px;font:700 13px/1.2 -apple-system,"PingFang SC",sans-serif;background:var(--card);color:var(--pri);box-shadow:var(--shadow);cursor:pointer}.daynav.on{background:var(--pri);color:#fff}
 </style>
 </head>
 <body>
@@ -1272,7 +1273,7 @@ async function today() {
       <div><div class="sub">${hello}</div><h1>${md(d.date)} ${WD[d.weekday]}</h1></div>
       <div class="row" style="gap:6px;margin-bottom:4px"><span class="chip" style="color:var(--gold)">⭐ ${d.stars}</span><span class="chip" style="color:var(--warn)">🔥 ${d.streak}</span></div></div>
     <div class="row" style="gap:8px;margin-top:6px">${isLite(d.date) ? '<span class="tag" style="background:var(--warn-soft);color:var(--warn)">🛟 保底模式</span>' : ''}${holidayName(d.date) ? `<span class="tag" style="background:var(--warn-soft);color:var(--warn)">${esc(holidayName(d.date))}</span>` : ''}
-      <button class="link" id="prev">‹ 前一天</button>${isToday ? '' : '<button class="link" id="next">后一天 ›</button><button class="link" id="tod" style="color:var(--pri)">回到今天</button>'}</div>
+      <button class="daynav" id="prev">‹ 前一天（补打卡）</button>${isToday ? '' : '<button class="daynav" id="next">后一天 ›</button><button class="daynav on" id="tod">回到今天</button>'}</div>
     ${backupDue() ? `<div class="warn bkup" id="bkNow" style="margin-top:12px">💾 ${DATA.lastBackup ? `已经 ${diffDays(todayIso(), DATA.lastBackup.slice(0, 10))} 天没备份了` : '还没备份过'}，<b>点这里一键发到微信</b>（发给文件传输助手）</div>` : ''}
     <div class="card hero-card"><div class="hero">${ring(cDone, cTotal)}
       <div style="flex:1;min-width:0"><h2>${cDone === cTotal ? '今天全部完成！' : `还差 ${cTotal - cDone} 项`}</h2>
@@ -1664,12 +1665,12 @@ async function ketView() {
   else {
     x += `<div class="card" style="padding:14px 18px"><div class="row between"><b>${s.finished ? '今天的 KET 复习完成 ✅' : `已过 ${n}/${items.length}`}</b><span class="faint">认识 ${ok} 个</span></div>
       <div class="bar" style="margin-top:8px"><i style="width:${items.length ? n / items.length * 100 : 0}%"></i></div>
-      <div class="faint" style="margin-top:8px">看英文想意思，想好了点 ✓ 或 ✗ 看答案。不认识的会在第 2、4、7…天再出现${s.due.length ? `；今天有 ${s.due.length} 个生词要复习（橙色）` : ''}</div></div>
+      <div class="faint" style="margin-top:8px">看英文读中文，会的点 ✓，不会的点 ✗（进错词本循环复习）。不认识的会在第 2、4、7…天再出现${s.due.length ? `；今天有 ${s.due.length} 个生词要复习（橙色）` : ''}</div></div>
       <div class="card" style="padding:4px 16px">` + items.map((w, i) => {
         const m = marks[w.w];
         return `<div class="wrow kr ${m === 1 ? 'ok' : m === 0 ? 'no' : ''} ${state.ketLast === i ? 'just' : ''}"><span class="n">${m === 1 ? '<b style="color:var(--ok)">✓</b>' : m === 0 ? '<b style="color:var(--warn)">✗</b>' : i + 1}</span>
           <div class="en"><b style="${w.due ? 'color:var(--warn)' : ''}">${esc(w.w)}</b><span>${esc(w.ipa)}</span></div>
-          <div class="zh"><span class="${m === undefined ? 'mask' : ''}">${esc(w.zh)}</span></div>
+          <div class="zh"><span>${esc(w.zh)}</span></div>
           <div class="row" style="gap:6px"><button class="say" data-say="${esc(w.w)}">🔊</button>${m === undefined ? `<button class="say" data-k="${i}:1" style="background:var(--ok-soft);color:var(--ok)">✓</button><button class="say" data-k="${i}:0" style="background:var(--warn-soft);color:var(--warn)">✗</button>` : ''}</div></div>`;
       }).join('') + `</div>`;
   }
