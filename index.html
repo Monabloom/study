@@ -450,6 +450,14 @@ nav button.on svg{background:var(--pri-soft);animation:hop .45s cubic-bezier(.3,
 .dm>.row:last-child{position:sticky;bottom:-20px;background:var(--card);padding:10px 0 4px;margin-bottom:-4px}
 .say.mk{opacity:.55}.say.mk.sel{opacity:1;box-shadow:inset 0 0 0 2px currentColor}
 .daynav{border:0;border-radius:99px;padding:7px 14px;font:700 13px/1.2 -apple-system,"PingFang SC",sans-serif;background:var(--card);color:var(--pri);box-shadow:var(--shadow);cursor:pointer}.daynav.on{background:var(--pri);color:#fff}
+
+.wyt{position:relative}
+.wyt.ok{background:var(--ok-soft);box-shadow:inset 0 0 0 2px rgba(22,163,110,.35)}
+.wyok{position:absolute;right:10px;top:10px;width:24px;height:24px;border-radius:50%;background:var(--ok);color:#fff;font-style:normal;font-weight:800;font-size:13px;display:grid;place-items:center;box-shadow:0 3px 8px rgba(22,163,110,.35)}
+.wydots{display:flex;gap:4px}
+.wydots i{width:14px;height:5px;border-radius:3px;background:var(--line)}
+.wydots i.on{background:var(--ok)}
+.wymk{display:block;margin-top:6px;border:0;border-radius:8px;padding:4px 8px;font:600 11.5px/1.2 -apple-system,"PingFang SC",sans-serif;background:var(--card);color:var(--sub);cursor:pointer}
 </style>
 </head>
 <body>
@@ -1736,14 +1744,23 @@ async function wenyan() {
   const tile = it => {
     const cur = wk && wk.idxs.includes(it.idx), ok = it.checks.includes(2);
     const blk = d.schedule.find(s => s.idxs.includes(it.idx));
-    return `<a class="tile ${cur ? 'cur' : ''}" data-wy="${it.idx}"><b>${esc(it.t)}</b>
+    return `<a class="tile wyt ${cur ? 'cur' : ''} ${ok ? 'ok' : ''}" data-wy="${it.idx}">${ok ? '<i class="wyok">✓</i>' : ''}<b>${esc(it.t)}</b>
       <small class="faint">${it.g}${blk ? ' · ' + blk.start.slice(5).replace('-', '/') + ' 起' : ''}</small>
-      <span>${ok ? '<em style="color:var(--ok);font-style:normal">✓ 已背会</em>' : cur ? '本周 · 去背 ›' : it.checks.length ? `${it.checks.length}/5 · 去看 ›` : '去看 ›'}</span></a>`;
+      <div class="wydots">${[0, 1, 2, 3, 4].map(k => `<i class="${it.checks.includes(k) ? 'on' : ''}"></i>`).join('')}</div>
+      <span>${ok ? `<em style="color:var(--ok);font-style:normal">✓ 已背会${it.checks.length === 5 ? ' · 复背完成' : ''}</em>` : cur ? '本周 · 去背 ›' : '去看 ›'}${ok ? '' : `<button class="wymk" data-wymk="${it.idx}">标为已背会</button>`}</span></a>`;
   };
   x += `<div class="sec-title">小学</div><div class="card"><div class="tiles" style="margin-top:0">` + d.items.filter(i => !/^初中/.test(i.g)).map(tile).join('') + `</div></div>`;
   x += `<div class="sec-title">初中必背 · 七到九年级</div><div class="card"><div class="tiles" style="margin-top:0">` + d.items.filter(i => /^初中/.test(i.g)).map(tile).join('') + `</div><div class="faint" style="margin-top:12px">按统编版课本；新教材篇目如有调整，以孩子的课本为准</div></div>`;
   app.innerHTML = x;
-  $$('[data-wy]').forEach(el => el.onclick = () => { state.wy = +el.dataset.wy; render(); scrollTo(0, 0); });
+  $$('[data-wy]').forEach(el => el.onclick = e => { if (e.target.closest('[data-wymk]')) return; state.wy = +el.dataset.wy; render(); scrollTo(0, 0); });
+  $$('[data-wymk]').forEach(b => b.onclick = e => {   // 以前已经背会的篇目，家长确认后一次标上「读通、能讲、能背」
+    e.stopPropagation(); const i = +b.dataset.wymk, w = d.items.find(x => x.idx === i);
+    askPin(`《${w.t.replace(/[《》]/g, '')}》标为已背会`, async p => {
+      if (String(p) !== String(pin())) return {error: '家长密码不对'};
+      for (const k of [0, 1, 2]) if (!w.checks.includes(k)) await api('/api/wenyan/check', {idx: i, stage: k, done: true});
+      toast('已标为背会 ✓'); render(); return {};
+    });
+  });
 }
 
 /* 朗读纠音：网页朗读不能指定读音，只在送去朗读的文字里把易错多音字换成同音常用字，屏幕显示不变 */
