@@ -448,6 +448,7 @@ nav button.on svg{background:var(--pri-soft);animation:hop .45s cubic-bezier(.3,
 .dmbtn{margin-top:12px;background:linear-gradient(90deg,#f59e0b,#ef4444)}
 @media (prefers-color-scheme:dark){.dmc.bad{background:#3b1414;color:#fca5a5}}
 .dm>.row:last-child{position:sticky;bottom:-20px;background:var(--card);padding:10px 0 4px;margin-bottom:-4px}
+.say.mk{opacity:.55}.say.mk.sel{opacity:1;box-shadow:inset 0 0 0 2px currentColor}
 </style>
 </head>
 <body>
@@ -1052,6 +1053,7 @@ LOCAL['POST /api/dictmark'] = b => {
   } else {
     const words = (CARDS[day - 1] || {words: []}).words;
     words.filter(w => wrong.has(w.w)).forEach(miss);
+    if (deck === 'mark') { save(); return {ok: true}; }   // 只记错词，不算完成
     DATA.wordTest = DATA.wordTest || {}; const r = DATA.wordTest[day] || {best: 0}; r.paper = {date, wrong: wrong.size}; DATA.wordTest[day] = r;
     if (deck === 'pet') {
       const wt = tasksFor(date).find(t => t.type === 'word');
@@ -1227,6 +1229,8 @@ async function doBackup() {
   return false;
 }
 /* 纸质听写打勾：列出今天这组词，家长点出写错的，点完成就算这项做完；错的进生词循环 + 错词本 */
+function petMarks(day) { const pm = DATA.petMarks = DATA.petMarks || {}; return pm[day] = pm[day] || {}; }
+function unmarkWrong(w) { unWrong(w.w); const q = ketState().wrong[w.w]; if (q) { if (q.n > 1) q.n--; else delete ketState().wrong[w.w]; } save(); }
 function openDictMark(deck, day) {
   const t = state.view === 'today' ? state.date : todayIso();   // 在今天页补昨天的也行
   const words = deck === 'ket' ? (() => { const ks = ketSession(t); return [...ks.due, ...ks.words]; })() : (CARDS[day - 1] || {words: []}).words;
@@ -1560,17 +1564,17 @@ async function words() {
       <div class="bar wd-bar"><i style="width:${learnedN / list.cards.length * 100}%"></i></div></div>
     ${(!meta.learned && day === list.current) || reviewsDue(todayIso()).some(v => v.day === day && !v.done) ? `<button class="btn block dmbtn" id="dmGo">📝 纸质听写打勾（点出写错的词）</button>` : ''}
     <div class="seg" style="margin:14px 0">${[['all', '跟读'], ['zh', '遮中文 · 说中文'], ['en', '遮英文 · 说英文']].map(([k, t]) => `<button data-mode="${k}" class="${m === k ? 'on' : ''}">${t}</button>`).join('')}</div>
-    <div class="faint" style="margin:0 4px">${m === 'all' ? '点 🔊 听发音，跟读两遍，每个词说一句话' : m === 'zh' ? '点 🔊 听英文，再点 🎤 用中文说出意思' : '看中文，点 🎤 一个字母一个字母拼出来（直接说单词也算想起来了）'}</div>
+    <div class="faint" style="margin:0 4px">${m === 'all' ? '点 🔊 听发音，跟读两遍' : m === 'zh' ? '点 🔊 听英文，再点 🎤 用中文说出意思' : '看中文，点 🎤 一个字母一个字母拼出来（直接说单词也算想起来了）'}</div>
     ${(() => { const due = reviewsDue(todayIso()).find(v => v.day === day && !v.done);
       if (due) return `<div class="warn" style="margin-top:12px">🔁 复习 Day ${day}（${due.name}）：用"遮中文"自测，对 ${PASS} 个自动完成复习</div>`;
-      if (!meta.learned && day === list.current) return `<div class="warn" style="margin-top:12px;background:var(--pri-soft);color:var(--pri)">📝 先跟读，再用"遮中文"自测，对 ${PASS} 个就自动背完（最好成绩 ${testBest(day)}/20）</div>`;
+      if (!meta.learned && day === list.current) return `<div class="warn" style="margin-top:12px;background:var(--pri-soft);color:var(--pri)">📝 听写完每个词点 ✓ 会 / ✗ 不会，20 个点完就算背完，✗ 的进错词本循环复习（也可以用"遮中文"自测）</div>`;
       return ''; })()}
     ${testing ? `<div class="card" style="padding:14px 18px"><div class="row between"><b>自测 ${okN}/${card.words.length}</b><button class="btn soft sm" id="qreset">重来</button></div>
       <div class="bar" style="margin-top:8px"><i style="width:${okN / card.words.length * 100}%"></i></div>
       ${wrong.length ? `<div class="faint" style="margin-top:8px">再看看：${wrong.map(w => esc(w.w)).join('、')}</div>` : ''}</div>` : ''}
     <div class="card" style="padding:4px 16px">` +
     card.words.map((w, i) => {
-      const r = quiz[i];
+      const pm = petMarks(day)[w.w], r = m === 'all' ? (pm === 1 ? 'ok' : pm === 0 ? 'no' : undefined) : quiz[i];   // 跟读页：家长点 ✓ / ✗
       const mark = r === 'no' ? '<span style="color:var(--warn);font-weight:800">✗</span>' : r === 'spell' ? '<span style="color:var(--ok);font-weight:800">✓</span>' : r ? '<span style="color:var(--ok);font-weight:800">✓</span>' : '';
       const said = quiz['h' + i], col = r === 'no' ? 'var(--warn)' : 'var(--ok)';
       const hideEn = m === 'en' && !r, hideZh = m === 'zh' && !r;
@@ -1578,11 +1582,11 @@ async function words() {
         : `<b class="${hideEn ? 'mask' : ''}" data-rev>${esc(w.w)}</b><span class="${hideEn ? 'mask' : ''}" data-rev>${esc(w.ipa)}</span>`;
       const zhCell = m === 'zh' && r ? `<span style="color:${col};font-weight:700">${esc(said)}</span><div class="faint" style="margin-top:2px">${r === 'no' ? '正确：' : ''}${esc(w.zh)}${r === 'no' ? ` · <a href="#" data-fix="${i}" style="color:var(--pri)">我其实对了</a>` : ''}</div>`
         : `<span class="${hideZh ? 'mask' : ''}" data-rev>${esc(w.zh)}</span>`;
-      return `<div class="wrow ${r ? (r === 'no' ? 'no' : 'ok') : ''} ${quiz._last === i ? 'just' : ''}" id="w${i}"><span class="n">${mark || i + 1}</span>
+      return `<div class="wrow ${m === 'all' ? 'kr' : ''} ${r ? (r === 'no' ? 'no' : 'ok') : ''} ${(m === 'all' ? state.pmLast === w.w : quiz._last === i) ? 'just' : ''}" id="w${i}"><span class="n">${mark || i + 1}</span>
       <div class="en">${enCell}</div>
       <div class="zh">${zhCell}
         </div>
-      <div class="row" style="gap:6px">${m !== 'en' ? `<button class="say" data-say="${esc(w.w)}">🔊</button>` : ''}${testing ? `<button class="say" data-mic="${i}" style="background:var(--ok-soft);color:var(--ok)">🎤</button>` : ''}</div></div>
+      <div class="row" style="gap:6px">${m !== 'en' ? `<button class="say" data-say="${esc(w.w)}">🔊</button>` : ''}${testing ? `<button class="say" data-mic="${i}" style="background:var(--ok-soft);color:var(--ok)">🎤</button>` : ''}${m === 'all' ? `<button class="say mk ${pm === 1 ? 'sel' : ''}" data-pm="${i}:1" style="background:var(--ok-soft);color:var(--ok)">✓</button><button class="say mk ${pm === 0 ? 'sel' : ''}" data-pm="${i}:0" style="background:var(--warn-soft);color:var(--warn)">✗</button>` : ''}</div></div>
       <div hidden data-in="${i}" style="padding:0 0 12px 32px"><div class="row"><input placeholder="${kbHint(m)}" style="padding:10px 12px;font-size:16px"><button class="btn sm" data-go="${i}">对答案</button></div>${kbTip(m)}</div>`;
     }).join('') +
     `</div><div class="row between"><button class="btn soft sm" id="pd" ${day <= 1 ? 'disabled' : ''}>‹ Day ${day - 1}</button>
@@ -1594,6 +1598,21 @@ async function words() {
   app.innerHTML = x;
   scrollTo(0, y);
   if ($('#dmGo')) $('#dmGo').onclick = () => openDictMark(!meta.learned && day === list.current ? 'pet' : 'review', day);
+  $$('[data-pm]').forEach(b => b.onclick = () => {   // 每个词点 ✓ / ✗；✗ 立刻进错词本 + 生词循环；再点一次取消
+    const [i, v] = b.dataset.pm.split(':').map(Number), w = card.words[i], pmk = petMarks(day), old = pmk[w.w];
+    if (old === 0) unmarkWrong(w);
+    if (old === v) delete pmk[w.w]; else { pmk[w.w] = v; if (v === 0) LOCAL['POST /api/dictmark']({deck: 'mark', day, wrong: [w.w]}); }
+    state.pmLast = w.w; save();
+    const all = card.words.every(x => x.w in pmk), t0 = todayIso(), need = (!meta.learned && day === list.current) || reviewsDue(t0).some(v2 => v2.day === day && !v2.done);
+    if (all && need) {   // 20 个都标完 = 这张卡完成（背完 / 复习完）
+      const before = rewardsState(t0).daily.unlocked;
+      LOCAL['POST /api/dictmark']({deck: !meta.learned && day === list.current ? 'pet' : 'review', day, wrong: []});
+      chime(false); confetti(innerWidth / 2, innerHeight / 3, 22);
+      if (!before && rewardsState(t0).daily.unlocked) bigCelebrate('🎮', '今天全部完成！', '试炼 2 局 / 排位 1 局 / 手机 20 分钟，自己选一个；周末再 +15 分钟', '去选奖励', () => go('rewards'));
+      else toast(`Day ${day} 完成！错 ${card.words.filter(x => pmk[x.w] === 0).length} 个已进错词本 🔁`);
+    } else if (v === 0 && old !== 0) toast(`${w.w} 进错词本了，过几天再考 🔁`);
+    render();
+  });
   const judge = (i, alts) => {
     const w = card.words[i];
     const r = m === 'zh' ? (judgeZh(alts, w.zh) ? 'ok' : 'no') : (judgeEn(alts, w.w) || 'no');
