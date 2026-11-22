@@ -468,6 +468,7 @@ nav button.on svg{background:var(--pri-soft);animation:hop .45s cubic-bezier(.3,
 .tt .mins label{padding:2px 8px}
 @media (prefers-color-scheme:dark){.wymk{background:rgba(255,255,255,.08);color:var(--sub)}.tt .mins label{background:rgba(255,255,255,.06)}.dmc{background:rgba(255,255,255,.06)}}
 .stamp{position:absolute;right:52px;top:50%;transform:translateY(-50%) rotate(-12deg);border:2px solid var(--ok);color:var(--ok);border-radius:8px;padding:2px 8px;font:800 13px/1.2 -apple-system,"PingFang SC",sans-serif;opacity:.75;pointer-events:none}
+.wk i.we{border-style:dotted}.hero-card .wk i.we:not(.full):not(.today){color:#ffe7c2}.wk i{width:22px;height:22px;font-size:11px}
 </style>
 </head>
 <body>
@@ -623,6 +624,37 @@ function eveOrder() {   // 晚上任务顺序：默认 EVENING + 阅读；家长
   const base = EVE_ALL(), o = (settings().taskCfg || {}).order;
   return o ? o.filter(id => base.includes(id)).concat(base.filter(id => !o.includes(id))) : base;
 }
+/* 家长在课表格子里写的学习安排 → 任务清单。一句里有几件事就拆成几项，能对上的用固定任务（PET/KET 等会自动打勾） */
+const PLAN_MAP = [
+  [/学校作业|寒假作业/, 'homework'], [/英语听力/, 'listen'], [/英语阅读/, 'eread'], [/背\s*PET|PET\s*\d*\s*个?单词/i, 'word'], [/KET/i, 'ket'],
+  [/短文/, 'erecite'], [/ABC/i, 'abc'], [/语文背|文言文|背.*古文/, 'wenyan'], [/阅读\s*\d+\s*分钟|刷牙洗脸/, 'bedread'], [/数学计算|口算/, 'math'],
+];
+function splitPlan(text) {
+  if (/刷牙洗脸/.test(text)) return [text];   // “刷牙洗脸+阅读20分钟”算一项
+  let parts = text.split(/[，,、；;]/).map(x => x.trim()).filter(Boolean);
+  parts = parts.flatMap(x => /^英语听力\s*[+＋]\s*英语阅读/.test(x) ? ['英语听力 1 篇', '英语阅读 1 篇'] : [x]);
+  return parts;
+}
+function prettyPlan(x) {
+  return x.replace(/各一篇$/, '').replace(/(\d+)\s*(个|篇|遍|页|分钟)/g, ' $1 $2').replace(/([A-Za-z]+)(\d)/g, '$1 $2').replace(/\s+/g, ' ').replace(/\+/g, ' + ').replace(/\s+/g, ' ').trim();
+}
+function planFromSheet(date, plan, cls, kind) {   // 11/22 家长：完全按课表里写的来——一行一项、原文照抄、显示家长写的时间，不拆不加
+  const tasks = [], rests = [], used = {}, lite = isLite(date);
+  let seq = 0, last = '18:00';
+  plan.forEach(([st, en, text]) => {
+    seq++;
+    if (!st || /睡觉/.test(text)) { rests.push({time: st || last, seq: seq * 10, dur: +((text.match(/\d+/) || [0])[0]), flex: false, text: /睡觉/.test(text) ? '🛏 ' + (st && !/\d/.test(text) ? st + ' ' : '') + text : text, sleep: /睡觉/.test(text)}); if (st) last = st; return; }
+    last = st;
+    if (text === '@课') return;   // 课本身在 cls 里，这里只用来定位后面的休息
+    if (lite && !/学校作业|寒假作业|PET|阅读/.test(text)) return;
+    const hits = PLAN_MAP.filter(([re]) => re.test(text)).map(h => h[1]);
+    let id = hits.length === 1 && !/[，,、；;+＋]/.test(text) ? hits[0] : 'x' + Array.from(text).reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7).toString(36);
+    if (used[id]) id = id + '_' + seq; used[id] = 1;
+    const go = /PET/i.test(text) ? 'card' : /KET/i.test(text) ? 'ket' : /听力/.test(text) ? 'media' : /语文背|文言文/.test(text) ? 'wenyan' : '';
+    tasks.push({id, label: text, time: st, end: en, plan: en ? `${st}–${en}` : `${st} 起`, seq: seq * 10, type: id.startsWith('x') ? '' : (TYPE[id] || ''), go, dur: 0});
+  });
+  return {tasks: tasks.concat(cls).sort((a, b) => (a.time || '99').localeCompare(b.time || '99') || (a.seq || 0) - (b.seq || 0)), rests, fromSheet: true};
+}
 function isLite(date) { return !!(DATA.lite || {})[date]; }
 function planFor(date) {
   if (!CFG) return {tasks: [], rests: []};   // 没有课表（旧设置链接）也按新任务清单排，只是不显示课
@@ -632,6 +664,7 @@ function planFor(date) {
     return {id: 'c' + k, label, time: time || '', end: en === null ? '' : m2t(en), type: 'class', s: st, e: en};
   });
   const blocks = cls.filter(c => c.s !== null).sort((a, b) => a.s - b.s);
+  if (s.p && s.p.length) return planFromSheet(date, s.p, cls, kind);   // 11/22：家长在课表里写了当天的学习安排，就完全按它来
   const tc = settings().taskCfg || {}, off = tc.off || {}, nm = (tc.names || {});   // 家长页「任务设置」：开关 / 改名 / 排序
   const mk = (id, a, b, parts) => ({id, label: nm[id] ? nm[id] : id === 'wrongrev' ? `错词复习 ${wrongToday(date).length} 个` : id === 'review' ? `复习旧单词卡 ${reviewsDue(date).length} 张` : id === 'abc' && kind !== 'school' ? 'ABC Reading 2 篇' : id === 'homework' && inVac ? '寒假作业' : LABEL[id], time: m2t(a), end: m2t(b), dur: parts ? parts.reduce((n, [x, y]) => n + y - x, 0) : b - a, type: TYPE[id] || '', parts: parts && parts.length > 1 ? parts.map(([x, y]) => m2t(x) + '–' + m2t(y)) : null});
   const tasks = [], rests = [];
@@ -907,16 +940,17 @@ function dayFull(date) { return coreFull(date); }
 function mondayOf(date) { return addDays(date, 1 - isoWeekday(date)); }
 function weekInfo(date) {
   const mon = mondayOf(date), start = CFG ? CFG.start_date : date, t = todayStr();
-  const days = [0, 1, 2, 3, 4].map(i => {
+  const days7 = [0, 1, 2, 3, 4, 5, 6].map(i => {
     const d = addDays(mon, i);
     let state = d < start ? 'skip' : d > t ? 'future' : dayFull(d) ? 'full' : d === t ? 'today' : 'miss';
-    return {date: d, label: '一二三四五'[i], state};
+    return {date: d, label: '一二三四五六日'[i], state};
   });
+  const days = days7.slice(0, 5);   // 周末奖励只看周一到周五
   const broken = days.some(x => x.state === 'miss');
   const unlocked = days.every(x => x.state === 'full' || x.state === 'skip');
   const sat = addDays(mon, 5), sun = addDays(mon, 6);
   const key = 'weekly:' + mon;
-  return {mon, days, broken, unlocked, key, claimed: DATA.claims[key] || null,
+  return {mon, days, days7, broken, unlocked, key, claimed: DATA.claims[key] || null,
     usable: days.some(x => x.state === 'full') && date >= sat && date <= sun, fullCount: days.filter(x => x.state === 'full').length,
     minutes: days.filter(x => x.state === 'full').length * WEEK_MIN, weekend: date >= sat && date <= sun,
     total: days.filter(x => x.state !== 'skip').length};
@@ -1317,13 +1351,13 @@ async function today() {
       <div class="sub" style="margin-top:2px">${dl.claimed ? '今日奖励已兑现 ✅' : dl.unlocked ? (isToday ? '🎮 已解锁：去奖励页三选一' : '这天已完成') : '全部完成：⚔️试炼2局 / 🏆排位1局 / 📱手机20分钟'}</div>
       ${nextT && cDone < cTotal ? `<div class="next" data-jump="${nextT.id}">接下来 <b>${esc(nextT.label)}</b></div>` : ''}
       ${dl.unlocked && !dl.claimed && isToday ? '<button class="btn sm" id="claimDaily" style="margin-top:8px">去选奖励</button>' : ''}</div></div>
-      <div class="wk" id="openWeek">${w.days.map(z => `<i class="${z.state}">${z.state === 'full' ? '✓' : z.label}</i>`).join('')}
+      <div class="wk" id="openWeek">${w.days7.map((z, i) => `<i class="${z.state} ${i >= 5 ? 'we' : ''}">${z.state === 'full' ? '✓' : z.label}</i>`).join('')}
         <span>${w.claimed ? `本周 ${w.minutes} 分钟已兑现` : `周末已攒 <b>${w.minutes}</b> 分钟 · 每天 +${WEEK_MIN}`}</span></div></div>`;
 
   const pend = d.reviews.filter(v => !v.done);
   const sub = t => {
     if (t.type === 'class') return '';   // 任务里一律不写时间（11/19 家长定）
-    const bits = [];   // 任务里不写时间/时长（11/19 家长定）
+    const bits = t.plan ? [t.plan] : [];   // 系统排的任务不写时间；家长在课表里自己写的安排显示家长写的时间
     if (t.id === 'listen' && !t.done) bits.push('选一集英文动画，看完说一句');
     if (t.type === 'word' && c.day) bits.push(`Day ${c.day} · ${esc(c.topics)}`);
     if (t.type === 'ket') { const ks = ketSession(d.date); if (ks.day) bits.push(`Day ${ks.day}${ks.due.length ? ` + ${ks.due.length} 个生词` : ''}`); }
@@ -1336,8 +1370,9 @@ async function today() {
     ewrite: ['🖍️', '#eef6ff'], wrongrev: ['🦊', '#ffece6'], erecite: ['🐬', '#e6f4ff'], dict: ['🎤', '#f3ecff'], goodsent: ['💎', '#e6f7fb']};
   let ri = 0;
   const row = t => {
-    const [em, bgc] = t.type === 'class' ? ['🏫', '#fff5dc'] : ICO[t.id] || ICO[t.type] || ['⭐', '#efeffd'];
-    const goTo = GO_TASK[t.id] || GO_TASK[t.type], now = nextT && t.id === nextT.id, sb = sub(t);
+    const guess = l => /PET/i.test(l) ? ICO.word : /KET/i.test(l) ? ICO.ket : /听力/.test(l) ? ICO.listen : /ABC/i.test(l) ? ICO.abc : /刷牙|阅读\s*\d+\s*分钟/.test(l) ? ICO.bedread : /作业/.test(l) ? ICO.homework : /语文背|文言文/.test(l) ? ICO.wenyan : /数学/.test(l) ? ICO.math : null;
+    const [em, bgc] = t.type === 'class' ? ['🏫', '#fff5dc'] : ICO[t.id] || ICO[t.type] || guess(t.label) || ['⭐', '#efeffd'];
+    const goTo = t.go || GO_TASK[t.id] || GO_TASK[t.type], now = nextT && t.id === nextT.id, sb = sub(t);
     const act = t.type === 'class' ? '<span class="faint">今天的课</span>' : t.done ? '<em class="okt">✓ 已完成</em>' : goTo ? `${now ? '现在 · ' : ''}去做 ›` : now ? '现在 · 做完点 ○' : '做完点 ○';
     return `<div style="--i:${ri++};--c:${bgc}" class="tt ${t.done ? 'done' : ''} ${now ? 'now' : ''} ${t.type === 'class' ? 'cls' : ''}" data-task="${t.id}" data-done="${t.done ? 0 : 1}" data-type="${t.type}" ${goTo && !t.done ? `data-go="${goTo}"` : ''}>
       ${t.done ? '<span class="stamp">已完成</span>' : ''}<span class="tico">${em}${t.no ? `<i>${t.no}</i>` : ''}</span>
@@ -1349,13 +1384,14 @@ async function today() {
             <label>⏱ 用时<input type="number" inputmode="numeric" min="0" max="300" data-min="${t.id}" value="${minOf(d.date, t.id) ?? ''}" placeholder="—">分钟</label></div>`; })()}</div>
       ${t.type === 'class' ? '' : `<span class="check" data-tick="1">${t.done ? '✓' : ''}</span>`}</div>`;
   };
-  const rest = z => `<div class="rest tt-rest"><span>☕ 休息 ${z.dur} 分钟，喝水、站起来动一动</span></div>`;
+  const rest = z => `<div class="rest tt-rest"><span>${z.sleep ? esc(z.text) : `☕ ${z.text ? esc(z.text) : `休息 ${z.dur} 分钟`}，喝水、站起来动一动`}</span></div>`;
+  let no = 0;   // 一天里连续编号（跨早上/下午/晚上）
   groups.forEach(([name, f], gi) => {
     const ts = d.tasks.filter(f); if (!ts.length) return;
-    const key = t => (t.flex && t.type !== 'class' ? '~' : '') + t.time + '1';
+    const key = t => (t.flex && t.type !== 'class' ? '~' : '') + t.time + String(t.seq || 0).padStart(5, '0') + '1';
     ts.sort((a, b) => key(a) < key(b) ? -1 : 1);
-    let no = 0; ts.filter(t => t.type !== 'class').forEach(t => { t.no = ++no; });   // 按显示顺序编号
-    const items = ts.map(t => ({k: key(t), html: row(t)})).concat((d.rests || []).filter(z => f({time: z.time})).map(z => ({k: (z.flex ? '~' : '') + z.time + '0', html: rest(z)})))
+    ts.filter(t => t.type !== 'class').forEach(t => { t.no = ++no; });   // 按显示顺序编号
+    const items = ts.map(t => ({k: key(t), html: row(t)})).concat((d.rests || []).filter(z => f({time: z.time})).map(z => ({k: (z.flex ? '~' : '') + z.time + String(z.seq || 0).padStart(5, '0') + '0', html: rest(z)})))
       .sort((a, b) => a.k < b.k ? -1 : 1);   // 有编号的（不写时间的）排在当晚的课后面
     // 休息排在同一时刻的任务之前；但它属于前一项之后，所以把 "HH:MM0" 放前面正好
     const todo = ts.filter(t => t.type !== 'class'), n = todo.filter(t => t.done).length, all = todo.length && n === todo.length;
