@@ -651,12 +651,26 @@ function planFromSheet(date, plan, cls, kind) {   // 11/22 家长：完全按课
     let id = hits.length === 1 && !/[，,、；;+＋]/.test(text) ? hits[0] : 'x' + Array.from(text).reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7).toString(36);
     if (used[id]) id = id + '_' + seq; used[id] = 1;
     const go = /PET/i.test(text) ? 'card' : /KET/i.test(text) ? 'ket' : /听力/.test(text) ? 'media' : /语文背|文言文/.test(text) ? 'wenyan' : '';
-    tasks.push({id, label: text, time: st, end: en, plan: en ? `${st}–${en}` : `${st} 起`, seq: seq * 10, type: id.startsWith('x') ? '' : (TYPE[id] || ''), go, dur: 0});
+    tasks.push({id, label: text, time: st, end: en, plan: en ? `${st}–${en}` : `${st} 起`, seq: seq * 10, type: id.startsWith('x') ? '' : (TYPE[id] || ''), go, dur: 0, hits});
   });
+  /* 11/22：保留旧记录——这一天之前按默认清单打过勾的（如英语阅读、PET），换成家长的安排后，对应的行自动算完成 */
+  const dn = DATA.taskDone[date];
+  if (dn && date <= todayStr()) {
+    const def = new Set(planFor(date, true).tasks.map(x => x.id));
+    let changed = false;
+    tasks.forEach(x => {
+      const al = (x.hits || []).filter(h => def.has(h) && h !== x.id);
+      if (!dn[x.id] && al.length && al.every(h => dn[h])) { dn[x.id] = Math.max(...al.map(h => +dn[h] || 0)) || Date.now(); changed = true; }
+      else if (!dn[x.id] && al.some(h => dn[h])) x.partial = '之前已做：' + al.filter(h => dn[h]).map(h => LABEL[h]).join('、');
+    });
+    if (changed) save();
+    const covered = new Set(tasks.flatMap(x => [x.id, ...(x.hits || [])]));   // 之前按默认清单做完、家长安排里没有的项，也照样列出来（已完成），记录不丢
+    planFor(date, true).tasks.filter(x => x.type !== 'class' && dn[x.id] && !covered.has(x.id)).forEach(x => tasks.push({...x, seq: 9000 + tasks.length, kept: true}));
+  }
   return {tasks: tasks.concat(cls).sort((a, b) => (a.time || '99').localeCompare(b.time || '99') || (a.seq || 0) - (b.seq || 0)), rests, fromSheet: true};
 }
 function isLite(date) { return !!(DATA.lite || {})[date]; }
-function planFor(date) {
+function planFor(date, noSheet) {
   if (!CFG) return {tasks: [], rests: []};   // 没有课表（旧设置链接）也按新任务清单排，只是不显示课
   const SCH = CFG.sched || {}, s = SCH[date] || {}, kind = dayKind(date), inVac = !!(CFG.vac && date >= CFG.vac[0] && date <= CFG.vac[1]);
   const cls = (s.c || []).map(([label, time, end], k) => {
@@ -664,7 +678,7 @@ function planFor(date) {
     return {id: 'c' + k, label, time: time || '', end: en === null ? '' : m2t(en), type: 'class', s: st, e: en};
   });
   const blocks = cls.filter(c => c.s !== null).sort((a, b) => a.s - b.s);
-  if (s.p && s.p.length) return planFromSheet(date, s.p, cls, kind);   // 11/22：家长在课表里写了当天的学习安排，就完全按它来
+  if (!noSheet && s.p && s.p.length) return planFromSheet(date, s.p, cls, kind);   // 11/22：家长在课表里写了当天的学习安排，就完全按它来
   const tc = settings().taskCfg || {}, off = tc.off || {}, nm = (tc.names || {});   // 家长页「任务设置」：开关 / 改名 / 排序
   const mk = (id, a, b, parts) => ({id, label: nm[id] ? nm[id] : id === 'wrongrev' ? `错词复习 ${wrongToday(date).length} 个` : id === 'review' ? `复习旧单词卡 ${reviewsDue(date).length} 张` : id === 'abc' && kind !== 'school' ? 'ABC Reading 2 篇' : id === 'homework' && inVac ? '寒假作业' : LABEL[id], time: m2t(a), end: m2t(b), dur: parts ? parts.reduce((n, [x, y]) => n + y - x, 0) : b - a, type: TYPE[id] || '', parts: parts && parts.length > 1 ? parts.map(([x, y]) => m2t(x) + '–' + m2t(y)) : null});
   const tasks = [], rests = [];
@@ -1357,7 +1371,8 @@ async function today() {
   const pend = d.reviews.filter(v => !v.done);
   const sub = t => {
     if (t.type === 'class') return '';   // 任务里一律不写时间（11/19 家长定）
-    const bits = t.plan ? [t.plan] : [];   // 系统排的任务不写时间；家长在课表里自己写的安排显示家长写的时间
+    const bits = t.plan ? [t.plan] : [];
+    if (t.partial && !t.done) bits.push(esc(t.partial));   // 系统排的任务不写时间；家长在课表里自己写的安排显示家长写的时间
     if (t.id === 'listen' && !t.done) bits.push('选一集英文动画，看完说一句');
     if (t.type === 'word' && c.day) bits.push(`Day ${c.day} · ${esc(c.topics)}`);
     if (t.type === 'ket') { const ks = ketSession(d.date); if (ks.day) bits.push(`Day ${ks.day}${ks.due.length ? ` + ${ks.due.length} 个生词` : ''}`); }
@@ -2162,7 +2177,11 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) { sy
 setInterval(dayCheck, 60000);
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   const t0 = Date.now(), hadCtl = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadCtl && Date.now() - t0 < 15000 && !sessionStorage.getItem('swReloaded')) { sessionStorage.setItem('swReloaded', '1'); location.reload(); } });   // 程序更新后第一次打开就换成新版
+  navigator.serviceWorker.addEventListener('controllerchange', () => {   // 程序更新后：新版接管就刷新一次（1 分钟内不重复刷）
+    let last = 0; try { last = +localStorage.getItem('swReloadAt') || 0; } catch (e) {}
+    if (hadCtl && Date.now() - last > 60000) { try { localStorage.setItem('swReloadAt', Date.now()); } catch (e) {} location.reload(); }
+  });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => {}); });
   navigator.serviceWorker.register('sw.js').then(r => r.update()).catch(() => {});
 }
 </script>

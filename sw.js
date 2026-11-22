@@ -1,12 +1,14 @@
-// 离线缓存：先用缓存打开，联网时后台更新
-const V = 'study-202611221830';
+// 11/22 改：联网时先取网上最新版（页面、课表），断网才用缓存——保证更新后打开就是新版；打卡记录存在 localStorage，更新不会动
+const V = 'study-202611222112';
 const FILES = ['./', './index.html', './manifest.json', './icon-180.png', './icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  e.respondWith(caches.open(V).then(c => c.match(e.request, {ignoreSearch: true}).then(hit => {
-    const net = fetch(e.request).then(r => { if (r.ok) c.put(e.request, r.clone()); return r; }).catch(() => hit);
-    return hit || net;
-  })));
+  const u = new URL(e.request.url);
+  if (u.origin !== location.origin) return;
+  e.respondWith(caches.open(V).then(c => fetch(e.request, {cache: 'no-store'}).then(r => {
+    if (r.ok && !u.pathname.endsWith('sched.enc')) c.put(e.request, r.clone());
+    return r;
+  }).catch(() => c.match(e.request, {ignoreSearch: true}))));
 });
