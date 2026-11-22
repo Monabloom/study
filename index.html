@@ -467,6 +467,7 @@ nav button.on svg{background:var(--pri-soft);animation:hop .45s cubic-bezier(.3,
 .fin b.no{color:var(--faint)}
 .tt .mins label{padding:2px 8px}
 @media (prefers-color-scheme:dark){.wymk{background:rgba(255,255,255,.08);color:var(--sub)}.tt .mins label{background:rgba(255,255,255,.06)}.dmc{background:rgba(255,255,255,.06)}}
+.stamp{position:absolute;right:52px;top:50%;transform:translateY(-50%) rotate(-12deg);border:2px solid var(--ok);color:var(--ok);border-radius:8px;padding:2px 8px;font:800 13px/1.2 -apple-system,"PingFang SC",sans-serif;opacity:.75;pointer-events:none}
 </style>
 </head>
 <body>
@@ -785,7 +786,11 @@ const LOCAL = {
   },
   'POST /api/wenyan/check'(b) {
     const i = +b.idx, k = +b.stage, date = b.date || todayStr(), key = i + ':' + k;
-    if (b.done) { DATA.wenyan[key] = date; star('wy:' + key, 1, date, `《${WENYAN[i].t}》${WY_STAGES[k]}`); }
+    if (b.done) {
+      DATA.wenyan[key] = date; star('wy:' + key, 1, date, `《${WENYAN[i].t}》${WY_STAGES[k]}`);
+      const t = tasksFor(date).find(x => x.type === 'wenyan'), dn = DATA.taskDone[date] = DATA.taskDone[date] || {};   // 11/21：文言文打了卡，今天的「文言文背诵」自动标完成
+      if (t && !dn[t.id]) { dn[t.id] = Date.now(); star(`task:${date}:${t.id}`, 1, date, t.label); refreshBonus(date); }
+    }
     else { delete DATA.wenyan[key]; unstar('wy:' + key); }
     save(); return {ok: true};
   },
@@ -1333,9 +1338,9 @@ async function today() {
   const row = t => {
     const [em, bgc] = t.type === 'class' ? ['🏫', '#fff5dc'] : ICO[t.id] || ICO[t.type] || ['⭐', '#efeffd'];
     const goTo = GO_TASK[t.id] || GO_TASK[t.type], now = nextT && t.id === nextT.id, sb = sub(t);
-    const act = t.type === 'class' ? '<span class="faint">今天的课</span>' : t.done ? '<em class="okt">✓ 完成啦</em>' : goTo ? `${now ? '现在 · ' : ''}去做 ›` : now ? '现在 · 做完点 ○' : '做完点 ○';
+    const act = t.type === 'class' ? '<span class="faint">今天的课</span>' : t.done ? '<em class="okt">✓ 已完成</em>' : goTo ? `${now ? '现在 · ' : ''}去做 ›` : now ? '现在 · 做完点 ○' : '做完点 ○';
     return `<div style="--i:${ri++};--c:${bgc}" class="tt ${t.done ? 'done' : ''} ${now ? 'now' : ''} ${t.type === 'class' ? 'cls' : ''}" data-task="${t.id}" data-done="${t.done ? 0 : 1}" data-type="${t.type}" ${goTo && !t.done ? `data-go="${goTo}"` : ''}>
-      <span class="tico">${em}${t.no ? `<i>${t.no}</i>` : ''}</span>
+      ${t.done ? '<span class="stamp">已完成</span>' : ''}<span class="tico">${em}${t.no ? `<i>${t.no}</i>` : ''}</span>
       <div class="tt-mid"><b>${t.type === 'class' ? '<span class="tag cls">课</span>' : ''}${esc(t.label)}</b>${sb ? `<small>${sb}</small>` : ''}
         ${t.type === 'review' && pend.length ? `<small>${pend.map(v => `<span class="pill" data-rv="${v.day}">复习 Day ${v.day}</span>`).join('')}</small>` : ''}
         ${t.type === 'class' ? '' : `<span class="act">${act}</span>`}
@@ -1355,7 +1360,7 @@ async function today() {
     // 休息排在同一时刻的任务之前；但它属于前一项之后，所以把 "HH:MM0" 放前面正好
     const todo = ts.filter(t => t.type !== 'class'), n = todo.filter(t => t.done).length, all = todo.length && n === todo.length;
     const open = !all && (nowG < 0 || gi >= nowG || todo.some(t => !t.done));
-    x += `<details class="card grp" ${open ? 'open' : ''}><summary><span>${name}</span><span class="faint">${all ? '✓ 完成' : `${n}/${todo.length}`}</span></summary><div class="tts">${items.map(z => z.html).join('')}</div></details>`;
+    x += `<details class="card grp" ${open ? 'open' : ''}><summary><span>${name}</span><span class="faint">${!todo.length ? '只有课' : all ? '✓ 完成' : `${n}/${todo.length}`}</span></summary><div class="tts">${items.map(z => z.html).join('')}</div></details>`;
   });
   if (isToday && isoWeekday(d.date) >= 6) x += weekCard(d.date);
   x += `<div class="row" style="gap:10px;margin-top:6px"><button class="btn soft block" id="openMedia" style="flex:1">📺 素材库</button><button class="btn soft block" id="share" style="flex:1">📤 发给家长</button></div>`;
