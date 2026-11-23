@@ -496,7 +496,8 @@ function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return 
 function emptyData() { return {taskDone: {}, wordLearn: {}, wordReview: {}, wenyan: {}, stars: {}, rewards: null, redeem: [], nextId: 1}; }
 let DATA = lsGet(LS_DATA, null) || emptyData();
 let CFG = lsGet(LS_CFG, null);
-function save() { DATA.savedAt = new Date().toISOString(); lsSet(LS_DATA, DATA); }
+function save() { DATA.savedAt = new Date().toISOString(); lsSet(LS_DATA, DATA); if (!save.quiet) cloudSoon(); }
+function tomb(path) { DATA.tomb = DATA.tomb || {}; DATA.tomb[path] = Date.now(); }   // 记下删除（取消打勾等），同步时别被另一台设备的旧数据加回来
 
 function ensureRewards() {
   if (DATA.rewards === null && CFG) {
@@ -717,7 +718,7 @@ function tasksFor(date) {
   return planFor(date).tasks;   // 11/19：旧版 weekday 任务表不再使用
 }
 function star(key, amount, date, note) { DATA.stars[key] = {key, amount, date, note, at: Date.now()}; }
-function unstar(key) { delete DATA.stars[key]; }
+function unstar(key) { if (DATA.stars[key]) tomb('stars/' + key); delete DATA.stars[key]; }
 function dayProgress(date) {
   const tasks = tasksFor(date), done = DATA.taskDone[date] || {};
   return [tasks.filter(t => done[t.id]).length, tasks.length];
@@ -801,8 +802,8 @@ const LOCAL = {
       star(`task:${date}:${task}`, t.type === 'word' ? 2 : 1, date, t.label);
       if (t.type === 'word' && !learnedOn(date)) { const cur = currentCard(); if (cur) DATA.wordLearn[cur] = date; }
     } else {
-      delete DATA.taskDone[date][task]; unstar(`task:${date}:${task}`);
-      if (t.type === 'word') { const d = learnedOn(date); if (d) delete DATA.wordLearn[d]; }
+      delete DATA.taskDone[date][task]; tomb(`taskDone/${date}/${task}`); unstar(`task:${date}:${task}`);
+      if (t.type === 'word') { const d = learnedOn(date); if (d) { delete DATA.wordLearn[d]; tomb('wordLearn/' + d); } }
     }
     refreshBonus(date); save(); return {ok: true};
   },
@@ -829,7 +830,7 @@ const LOCAL = {
   'POST /api/review'(b) {
     const day = +b.day, stage = +b.stage, date = b.date || todayStr(), k = day + ':' + stage;
     if (b.done) { DATA.wordReview[k] = date; star('review:' + k, 1, date, `复习 Day ${day}（${REVIEW_NAMES[stage]}）`); syncReview(date); }
-    else { delete DATA.wordReview[k]; unstar('review:' + k); }
+    else { delete DATA.wordReview[k]; tomb('wordReview/' + k); unstar('review:' + k); }
     save(); return {ok: true};
   },
   'POST /api/wenyan/check'(b) {
@@ -839,7 +840,7 @@ const LOCAL = {
       const t = tasksFor(date).find(x => x.type === 'wenyan'), dn = DATA.taskDone[date] = DATA.taskDone[date] || {};   // 11/21：文言文打了卡，今天的「文言文背诵」自动标完成
       if (t && !dn[t.id]) { dn[t.id] = Date.now(); star(`task:${date}:${t.id}`, 1, date, t.label); refreshBonus(date); }
     }
-    else { delete DATA.wenyan[key]; unstar('wy:' + key); }
+    else { delete DATA.wenyan[key]; tomb('wenyan/' + key); unstar('wy:' + key); }
     save(); return {ok: true};
   },
   'GET /api/words'() {
@@ -1163,6 +1164,55 @@ LOCAL['POST /api/ket/finish'] = b => {
 };
 
 /* ---------- 课表自动同步：网站上的 sched.enc 是用设置链接里的密钥加密的课表，只有本机能解开 ---------- */
+/* ---------- 云同步（11/23 家长选方案 B）：打卡记录加密后存到孩子专用 GitHub 账号的私密 Gist，几台设备共用一份，换设备/重装不丢 ---------- */
+async function aesKey() { const raw = Uint8Array.from(atob(CFG.k.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)); return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']); }
+const b64e = u8 => { let s = ''; u8.forEach(b => s += String.fromCharCode(b)); return btoa(s); };
+const b64d = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function encJSON(o) { const iv = crypto.getRandomValues(new Uint8Array(12)), ct = new Uint8Array(await crypto.subtle.encrypt({name: 'AES-GCM', iv}, await aesKey(), new TextEncoder().encode(JSON.stringify(o)))); const all = new Uint8Array(12 + ct.length); all.set(iv); all.set(ct, 12); return b64e(all); }
+async function decJSON(s) { const b = b64d(s.trim()); return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name: 'AES-GCM', iv: b.slice(0, 12)}, await aesKey(), b.slice(12)))); }
+function mergeData(a, b) {   // 两份打卡记录合并：都有的保留，冲突时以后保存的那份为准；被删掉（有删除记号）的不复活
+  const newer = (a.savedAt || '') >= (b.savedAt || '') ? a : b;
+  const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+  const deep = (x, y, nx) => { const o = {}; new Set([...Object.keys(x || {}), ...Object.keys(y || {})]).forEach(k => {
+    const vx = x ? x[k] : undefined, vy = y ? y[k] : undefined;
+    if (vx === undefined) o[k] = vy; else if (vy === undefined) o[k] = vx;
+    else if (isObj(vx) && isObj(vy)) o[k] = deep(vx, vy, nx);
+    else if (Array.isArray(vx) && Array.isArray(vy) && k === 'redeem') o[k] = [...vx, ...vy.filter(r => !vx.some(q => JSON.stringify(q) === JSON.stringify(r)))];
+    else o[k] = nx === 'a' ? vx : vy; }); return o; };
+  const m = deep(a, b, newer === a ? 'a' : 'b');
+  const tombs = {...(b.tomb || {})}; Object.entries(a.tomb || {}).forEach(([p, t]) => { tombs[p] = Math.max(t, tombs[p] || 0); });
+  const cut = Date.now() - 60 * 864e5;
+  Object.entries(tombs).forEach(([p, t]) => {
+    if (t < cut) { delete tombs[p]; return; }
+    const ks = p.split('/'), get = o => ks.reduce((v, k) => v && v[k], o);
+    const keep = [a, b].some(side => get(side) !== undefined && (side.savedAt ? Date.parse(side.savedAt) : 0) > t);
+    if (!keep) { const par = ks.slice(0, -1).reduce((v, k) => v && v[k], m); if (par) delete par[ks[ks.length - 1]]; }
+  });
+  m.tomb = tombs; m.savedAt = newer.savedAt; return m;
+}
+let cloudTimer = null, cloudBusy = false, cloudLast = '';
+function cloudSoon() { if (!CFG || !CFG.gt || !CFG.gid) return; clearTimeout(cloudTimer); cloudTimer = setTimeout(() => cloudSync(), 3000); }
+async function cloudSync() {   // 拉下网上那份 → 合并 → 有变化就推上去；返回 true 表示本机数据变了（需要刷新页面）
+  if (!CFG || !CFG.gt || !CFG.gid || cloudBusy || !(window.crypto && crypto.subtle)) return false;
+  cloudBusy = true; const H = {Authorization: 'token ' + CFG.gt, Accept: 'application/vnd.github+json'};
+  try {
+    const r = await fetch('https://api.github.com/gists/' + CFG.gid + '?t=' + Date.now(), {headers: H, cache: 'no-store'});
+    if (!r.ok) throw new Error('get ' + r.status);
+    const f = (await r.json()).files['study_data.enc'], remote = f && f.content && f.content.length > 20 ? await decJSON(f.content) : null;
+    const before = JSON.stringify(DATA), merged = remote ? mergeData(DATA, remote) : DATA;
+    const changedLocal = JSON.stringify(merged) !== before;
+    if (changedLocal) { DATA = merged; save.quiet = true; lsSet(LS_DATA, DATA); save.quiet = false; }
+    const mine = JSON.stringify(DATA);
+    if (!remote || JSON.stringify(remote) !== mine) {
+      const body = {files: {'study_data.enc': {content: await encJSON(DATA)}}};
+      const w = await fetch('https://api.github.com/gists/' + CFG.gid, {method: 'PATCH', headers: {...H, 'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+      if (!w.ok) throw new Error('patch ' + w.status);
+    }
+    DATA.cloudAt = new Date().toISOString(); lsSet(LS_DATA, DATA); cloudLast = '';
+    return changedLocal;
+  } catch (e) { cloudLast = e.message || String(e); return false; }
+  finally { cloudBusy = false; }
+}
 /* 解开用设置链接里的密钥加密的文件（课表、语文一课一贴） */
 async function decryptEnc(name) {
   if (!CFG || !CFG.k || !(window.crypto && crypto.subtle)) throw new Error('nokey');
@@ -1286,7 +1336,7 @@ setInterval(() => $$('.tmr').forEach(el => { const s = Math.floor((Date.now() - 
 function minOf(date, id) { const v = ((DATA.taskMin || {})[date] || {})[id]; return v === undefined ? null : v; }
 function setMin(date, id, v) {
   DATA.taskMin = DATA.taskMin || {}; const m = DATA.taskMin[date] = DATA.taskMin[date] || {}, n = parseInt(v, 10);
-  if (isNaN(n) || n < 0) delete m[id]; else m[id] = Math.min(n, 600);
+  if (isNaN(n) || n < 0) { delete m[id]; tomb(`taskMin/${date}/${id}`); } else m[id] = Math.min(n, 600);
   save();
 }
 /* 每周小结：完成天数、总用时、背了几张卡、错词、最常没做完的 */
@@ -1326,7 +1376,7 @@ async function doBackup() {
 }
 /* 纸质听写打勾：列出今天这组词，家长点出写错的，点完成就算这项做完；错的进生词循环 + 错词本 */
 function petMarks(day) { const pm = DATA.petMarks = DATA.petMarks || {}; return pm[day] = pm[day] || {}; }
-function unmarkWrong(w) { unWrong(w.w); const q = ketState().wrong[w.w]; if (q) { if (q.n > 1) q.n--; else delete ketState().wrong[w.w]; } save(); }
+function unmarkWrong(w) { unWrong(w.w); const q = ketState().wrong[w.w]; if (q) { if (q.n > 1) q.n--; else { delete ketState().wrong[w.w]; tomb('ket/wrong/' + w.w); } } save(); }
 function openDictMark(deck, day) {
   const t = state.view === 'today' ? state.date : todayIso();   // 在今天页补昨天的也行
   const words = deck === 'wrong' ? wrongToday(t).filter(w => !w.done) : deck === 'ket' ? (() => { const ks = ketSession(t); return [...ks.due, ...ks.words]; })() : (CARDS[day - 1] || {words: []}).words;
@@ -1627,7 +1677,7 @@ function deckSeg() {
 function bindDeck() { $$('[data-deck]').forEach(b => b.onclick = () => { state.deck = b.dataset.deck; render(); scrollTo(0, 0); }); }
 /* 错词本：PET 自测答错、KET 点 ✗ 的词都收进来，会了就划掉 */
 function addWrong(w, src) { addWrongBook(w, src); save(); }
-function unWrong(word) { const b = DATA.wrongBook || {}, e = b[word]; if (!e) return; if (e.n > 1) e.n--; else delete b[word]; save(); }
+function unWrong(word) { const b = DATA.wrongBook || {}, e = b[word]; if (!e) return; if (e.n > 1) e.n--; else { delete b[word]; tomb('wrongBook/' + word); } save(); }
 function wrongView() {
   const list = Object.values(DATA.wrongBook || {}).sort((a, b) => b.n - a.n || (b.last > a.last ? 1 : -1));
   let x = deckSeg() + `<div class="card hero-card wd-hero wrong"><div class="row between" style="align-items:flex-start"><div><div class="sub">答错过的词都在这里，周末过一遍</div><h1 class="wd-h">错词本</h1></div><span class="wd-pet">🦊</span></div>
@@ -1702,7 +1752,7 @@ async function words() {
   $$('[data-pm]').forEach(b => b.onclick = () => {   // 每个词点 ✓ / ✗；✗ 立刻进错词本 + 生词循环；再点一次取消
     const [i, v] = b.dataset.pm.split(':').map(Number), w = card.words[i], pmk = petMarks(day), old = pmk[w.w];
     if (old === 0) unmarkWrong(w);
-    if (old === v) delete pmk[w.w]; else { pmk[w.w] = v; if (v === 0) LOCAL['POST /api/dictmark']({deck: 'mark', day, wrong: [w.w]}); }
+    if (old === v) { delete pmk[w.w]; tomb(`petMarks/${day}/${w.w}`); } else { pmk[w.w] = v; if (v === 0) LOCAL['POST /api/dictmark']({deck: 'mark', day, wrong: [w.w]}); }
     state.pmLast = w.w; save();
     const all = card.words.every(x => x.w in pmk), t0 = todayIso(), need = (!meta.learned && day === list.current) || reviewsDue(t0).some(v2 => v2.day === day && !v2.done);
     if (all && need) {   // 20 个都标完 = 这张卡完成（背完 / 复习完）
@@ -2139,6 +2189,9 @@ async function parent() {
     <details class="card grp"><summary><span>⭐ 星星明细</span><span class="faint">共 ${s.earned} 颗</span></summary>
       ${s.recent.slice(0, 15).map(r => `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><span style="font-size:14px">${esc(r.note)}</span><span class="faint">${r.date.slice(5).replace('-', '/')} +${r.amount}</span></div>`).join('') || '<div class="faint" style="padding-bottom:12px">还没有</div>'}</details>
 
+    <div class="card"><div class="row between"><h2>☁️ 云同步</h2><span class="tag" style="${CFG && CFG.gt ? 'background:var(--ok-soft);color:var(--ok)' : 'background:var(--warn-soft);color:var(--warn)'}">${CFG && CFG.gt ? '已开启' : '未开启'}</span></div>
+      <div class="sub" style="margin:4px 0 12px">${CFG && CFG.gt ? `打卡记录加密后自动存到网上，手机、电脑、平板看到同一份，换设备也不丢。上次同步：${DATA.cloudAt ? new Date(DATA.cloudAt).toLocaleString('zh-CN', {month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}) : '还没有'}${cloudLast ? `<br><span style="color:var(--warn)">上次没连上（${esc(cloudLast)}），联网后会自动再试</span>` : ''}` : '还没开启：记录只存在这台设备上。请家长导入带云同步的设置链接。'}</div>
+      ${CFG && CFG.gt ? '<button class="btn soft sm" id="cloudNow">立即同步</button>' : ''}</div>
     <div class="card"><div class="row between"><h2>🛟 保底模式</h2><span class="tag" style="${isLite(t) ? 'background:var(--warn-soft);color:var(--warn)' : ''}">${isLite(t) ? '今天已开启' : '未开启'}</span></div>
       <div class="sub" style="margin:4px 0 12px">有晚课、太累或生病时用：今天只做「学校作业 + PET 单词 + 阅读」，做完就算全部完成，奖励和连续天数照算。</div>
       <button class="btn ${isLite(t) ? 'soft' : ''} sm" id="liteBtn">${isLite(t) ? '关掉，恢复完整任务' : '今天开启保底模式'}</button></div>
@@ -2174,9 +2227,10 @@ async function parent() {
   $('#setpin').onclick = () => { const v = $('#np').value; if (v.trim().length < 4) { toast('新密码至少 4 位'); return; } askPin('先输入原密码', async p => { const r = await api('/api/pin', {pin: p, newpin: v}); if (!r.error) { toast('密码已修改'); render(); } return r; }); };
   if ($('#wsShare')) $('#wsShare').onclick = () => shareWeek(t);
   if ($('#wsBk')) $('#wsBk').onclick = async () => { if (await doBackup()) render(); else toast('这台设备发不了文件，请到下面「设置」里导出'); };
+  if ($('#cloudNow')) $('#cloudNow').onclick = async () => { toast('正在同步…'); await cloudSync(); toast(cloudLast ? '没连上，稍后再试' : '同步好了 ☁️'); render(); };
   $('#liteBtn').onclick = () => askPin(isLite(t) ? '关掉保底模式' : '今天开启保底模式', async p => {
     if (String(p) !== String(pin())) return {error: '家长密码不对'};
-    DATA.lite = DATA.lite || {}; if (isLite(t)) delete DATA.lite[t]; else DATA.lite[t] = 1; save(); refreshBonus(t); toast(isLite(t) ? '今天只做 3 项 🛟' : '已恢复完整任务'); render(); return {};
+    DATA.lite = DATA.lite || {}; if (isLite(t)) { delete DATA.lite[t]; tomb('lite/' + t); } else DATA.lite[t] = 1; save(); refreshBonus(t); toast(isLite(t) ? '今天只做 3 项 🛟' : '已恢复完整任务'); render(); return {};
   });
   $('#tcList').onclick = e => { const b = e.target.closest('[data-up],[data-dn]'); if (!b) return; const r = b.closest('.tcr'), sib = b.hasAttribute('data-up') ? r.previousElementSibling : r.nextElementSibling; if (!sib) return; b.hasAttribute('data-up') ? r.parentNode.insertBefore(r, sib) : r.parentNode.insertBefore(sib, r); };
   $('#tcSave').onclick = () => askPin('保存任务设置', async p => {
@@ -2215,7 +2269,8 @@ function dayCheck() {
   if (t !== lastDay) { lastDay = t; state.date = t; quiz = {}; if (CFG) render(); }
 }
 syncSchedule().then(ch => { if (ch) { toast('课表已自动更新'); render(); } });
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { syncSchedule().then(ch => { if (ch) { toast('课表已自动更新'); render(); } }); dayCheck(); if (CFG && state.view === 'today' && !document.querySelector('.sheet-bg')) render(); } });
+cloudSync().then(ch => { if (ch) { toast('已同步其他设备的打卡记录 ☁️'); render(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { cloudSync().then(ch => { if (ch) render(); }); syncSchedule().then(ch => { if (ch) { toast('课表已自动更新'); render(); } }); dayCheck(); if (CFG && state.view === 'today' && !document.querySelector('.sheet-bg')) render(); } });
 setInterval(dayCheck, 60000);
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   const t0 = Date.now(), hadCtl = !!navigator.serviceWorker.controller;
