@@ -112,8 +112,8 @@ nav button.on{color:var(--pri)}
 .say{border:0;background:var(--pri-soft);color:var(--pri);width:38px;height:38px;border-radius:12px;font-size:16px;cursor:pointer;flex:none}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:7px}
 .grid button{border:0;border-radius:11px;padding:9px 0;font:inherit;font-size:13px;background:var(--bg);color:var(--sub);cursor:pointer}
-.grid button.l{background:var(--ok-soft);color:var(--ok);font-weight:700}
-.grid button.r3{background:var(--ok);color:#fff;font-weight:700}
+.grid button.l{background:var(--ok);color:#fff;font-weight:800;box-shadow:0 3px 8px rgba(22,163,110,.3)}
+.grid button.r3{background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;font-weight:800}
 .grid button.cur{outline:2px solid var(--pri)}
 /* wenyan */
 .kai{font-family:inherit;letter-spacing:.03em}
@@ -1788,8 +1788,8 @@ async function words() {
     `</div><div class="row between"><button class="btn soft sm" id="pd" ${day <= 1 ? 'disabled' : ''}>‹ Day ${day - 1}</button>
       <button class="btn soft sm" id="nd" ${day >= list.cards.length ? 'disabled' : ''}>Day ${day + 1} ›</button></div>
     <div class="sec-title">全部 ${list.cards.length} 天</div>
-    <div class="card"><div class="grid">` + list.cards.map(k => `<button data-day="${k.day}" class="${k.reviews.length === 5 ? 'r3' : k.learned ? 'l' : ''} ${k.day === day ? 'cur' : ''}">${k.day}</button>`).join('') +
-    `</div><div class="faint" style="margin-top:12px">浅绿 = 背过 · 深绿 = 五轮复习都完成</div></div>`;
+    <div class="card"><div class="grid">` + list.cards.map(k => `<button data-day="${k.day}" class="${k.reviews.length === 5 ? 'r3' : k.learned ? 'l' : ''} ${k.day === day ? 'cur' : ''}">${k.learned ? '✓' : ''}${k.day}</button>`).join('') +
+    `</div><div class="faint" style="margin-top:12px">绿色带 ✓ = 已背完 · 橙色 = 五轮复习都完成 · 紫框 = 正在看的这天</div></div>`;
   const y = scrollY;
   app.innerHTML = x;
   scrollTo(0, y);
