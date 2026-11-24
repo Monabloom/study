@@ -687,6 +687,7 @@ function planFromSheet(date, plan, cls, kind) {   // 11/22 家长：完全按课
   });
   return {tasks: tasks.concat(cls).sort((a, b) => (a.time || '99').localeCompare(b.time || '99') || (a.seq || 0) - (b.seq || 0)), rests, fromSheet: true};
 }
+function markPetLearned(date) { if (learnedOn(date) === null) { const cur = currentCard(); if (cur) DATA.wordLearn[cur] = date; } }
 function partAuto(date, sid) {   // 能自动判断做没做完的小项
   if (sid === 'word') return learnedOn(date) !== null;
   if (sid === 'ket') return ketDoneOn(date);
@@ -825,6 +826,7 @@ const LOCAL = {
       if (cur && testBest(cur) < PASS) return {error: 'needtest', day: cur};
     }
     DATA.taskDone[date] = DATA.taskDone[date] || {};
+    if (done && (t.hits || []).includes('word')) markPetLearned(date);   // 家长安排里含“背PET单词”的整行打勾，也记背完
     if (done) {
       DATA.taskDone[date][task] = Date.now();
       star(`task:${date}:${task}`, t.type === 'word' ? 2 : 1, date, t.label);
@@ -1152,8 +1154,9 @@ LOCAL['POST /api/ket/result'] = b => {
    写错的词进「生词循环」（和 KET 生词同一套记忆曲线：第 2、4、7、15、30 天在 KET 复习里再出现）+ 错词本 */
 function addWrongBook(w, src) { const bk = DATA.wrongBook = DATA.wrongBook || {}, e = bk[w.w] || {w: w.w, ipa: w.ipa || '', zh: w.zh || '', src, n: 0}; e.n++; e.last = todayStr(); bk[w.w] = e; }
 LOCAL['POST /api/part'] = b => {   // 点小项的 ✓
-  const {date, line, key, done} = b, dd = DATA.taskDone[date] = DATA.taskDone[date] || {};
+  const {date, line, key, done, sid} = b, dd = DATA.taskDone[date] = DATA.taskDone[date] || {};
   if (date > todayStr()) return {error: '不能提前打卡哦'};
+  if (done && sid === 'word') markPetLearned(date);   // 手动勾“背PET单词”也记这张卡背完（11/24：孩子纸质背完 Day2-5 没记上）
   if (done) dd[key] = Date.now(); else { delete dd[key]; tomb(`taskDone/${date}/${key}`); if (dd[line]) { delete dd[line]; tomb(`taskDone/${date}/${line}`); unstar(`task:${date}:${line}`); } }
   tasksFor(date); refreshBonus(date); save(); return {ok: true, lineDone: !!dd[line]};
 };
@@ -1487,7 +1490,7 @@ async function today() {
     return `<div style="--i:${ri++};--c:${bgc}" class="tt ${t.done ? 'done' : ''} ${now ? 'now' : ''} ${t.type === 'class' ? 'cls' : ''}" data-task="${t.id}" data-done="${t.done ? 0 : 1}" data-type="${t.type}" ${goTo && !t.done ? `data-go="${goTo}"` : ''}>
       ${t.done ? '<span class="stamp">已完成</span>' : ''}<span class="tico">${em}${t.no ? `<i>${t.no}</i>` : ''}</span>
       <div class="tt-mid"><b>${t.type === 'class' ? '<span class="tag cls">课</span>' : ''}${esc(t.label)}</b>${sb ? `<small>${sb}</small>` : ''}
-        ${t.parts ? `<div class="pts" data-nogo="1">${t.parts.map(p => `<button class="pt ${p.done || t.done ? 'on' : ''}" data-part="${p.key}" data-line="${t.id}" data-pdone="${p.done || t.done ? 0 : 1}">${p.done || t.done ? '✓' : '○'} ${esc(p.label)}</button>`).join('')}</div>` : ''}
+        ${t.parts ? `<div class="pts" data-nogo="1">${t.parts.map(p => `<button class="pt ${p.done || t.done ? 'on' : ''}" data-part="${p.key}" data-sid="${p.sid}" data-line="${t.id}" data-pdone="${p.done || t.done ? 0 : 1}">${p.done || t.done ? '✓' : '○'} ${esc(p.label)}</button>`).join('')}</div>` : ''}
         ${t.type === 'review' && pend.length ? `<small>${pend.map(v => `<span class="pill" data-rv="${v.day}">复习 Day ${v.day}</span>`).join('')}</small>` : ''}
         ${t.type === 'class' ? '' : `<span class="act">${act}</span>`}
         ${t.type === 'class' ? '' : (() => { const run = DATA.timer && DATA.timer.date === d.date && DATA.timer.id === t.id;
@@ -1541,7 +1544,7 @@ async function today() {
   $$('[data-part]').forEach(b => b.onclick = async e => {
     e.stopPropagation();
     const on = b.dataset.pdone === '1', before = rewardsState(d.date).daily.unlocked;
-    const r = LOCAL['POST /api/part']({date: d.date, line: b.dataset.line, key: b.dataset.part, done: on});
+    const r = LOCAL['POST /api/part']({date: d.date, line: b.dataset.line, key: b.dataset.part, done: on, sid: b.dataset.sid});
     if (r.error) { toast(r.error); return; }
     await render();
     if (on) { chime(false); if (r.lineDone) { const el = document.querySelector(`[data-task="${b.dataset.line}"] .check`); if (el) el.classList.add('pop'); toast('这一行全部完成 ✓'); } }
