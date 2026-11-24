@@ -470,6 +470,12 @@ nav button.on svg{background:var(--pri-soft);animation:hop .45s cubic-bezier(.3,
 .stamp{position:absolute;right:52px;top:50%;transform:translateY(-50%) rotate(-12deg);border:2px solid var(--ok);color:var(--ok);border-radius:8px;padding:2px 8px;font:800 13px/1.2 -apple-system,"PingFang SC",sans-serif;opacity:.75;pointer-events:none}
 .wk i.we{border-style:dotted}.hero-card .wk i.we:not(.full):not(.today){color:#ffe7c2}.wk i{width:22px;height:22px;font-size:11px}
 .tile b{white-space:pre-line}.tile.yd{background:var(--gold-soft)}
+
+.pts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.pt{border:0;border-radius:10px;padding:5px 10px;font:600 12.5px/1.3 -apple-system,"PingFang SC",sans-serif;background:var(--card);color:var(--sub);cursor:pointer;text-align:left;transition:transform .12s}
+.pt.on{background:var(--ok-soft);color:var(--ok)}
+.pt:active{transform:scale(.95)}
+@media (prefers-color-scheme:dark){.pt{background:rgba(255,255,255,.07)}}
 </style>
 </head>
 <body>
@@ -653,7 +659,10 @@ function planFromSheet(date, plan, cls, kind) {   // 11/22 家长：完全按课
     let id = hits.length === 1 && !/[，,、；;+＋]/.test(text) ? hits[0] : 'x' + Array.from(text).reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7).toString(36);
     if (used[id]) id = id + '_' + seq; used[id] = 1;
     const go = /PET/i.test(text) ? 'card' : /KET/i.test(text) ? 'ket' : /听力/.test(text) ? 'media' : /语文背|文言文/.test(text) ? 'wenyan' : '';
-    tasks.push({id, label: text, time: st, end: en, plan: en ? `${st}–${en}` : `${st} 起`, seq: seq * 10, type: id.startsWith('x') ? '' : (TYPE[id] || ''), go, dur: 0, hits});
+    const cp = /刷牙洗脸/.test(text) ? [text] : text.split(/[，,、；;]/).map(x => x.trim()).filter(Boolean);   // 有逗号按逗号拆；只有“+”时按“+”拆
+    const parts = cp.length > 1 ? cp : /刷牙洗脸/.test(text) ? [] : text.split(/[+＋]/).map(x => x.trim()).filter(Boolean);
+    tasks.push({id, label: text, time: st, end: en, plan: en ? `${st}–${en}` : `${st} 起`, seq: seq * 10, type: id.startsWith('x') ? '' : (TYPE[id] || ''), go, dur: 0, hits,
+      parts: parts.length > 1 ? parts.map((x, j) => ({label: x, sid: (PLAN_MAP.find(([re]) => re.test(x)) || [])[1] || '', key: id + '#' + j})) : null});
   });
   /* 11/22：保留旧记录——这一天之前按默认清单打过勾的（如英语阅读、PET），换成家长的安排后，对应的行自动算完成 */
   const dn = DATA.taskDone[date];
@@ -669,7 +678,21 @@ function planFromSheet(date, plan, cls, kind) {   // 11/22 家长：完全按课
     const covered = new Set(tasks.flatMap(x => [x.id, ...(x.hits || [])]));   // 之前按默认清单做完、家长安排里没有的项，也照样列出来（已完成），记录不丢
     planFor(date, true).tasks.filter(x => x.type !== 'class' && dn[x.id] && !covered.has(x.id)).forEach(x => tasks.push({...x, seq: 9000 + tasks.length, kept: true}));
   }
+  /* 一行里有几件事：每件事单独显示 ✓。背单词、KET、文言文在对应页面做完会自动打勾；全部打勾后，整行自动标「已完成」 */
+  const dd = DATA.taskDone[date] = DATA.taskDone[date] || {};
+  tasks.forEach(x => {
+    if (!x.parts) return;
+    x.parts.forEach(pt => { pt.done = !!dd[x.id] || !!dd[pt.key] || partAuto(date, pt.sid); });
+    if (!dd[x.id] && x.parts.every(pt => pt.done) && date <= todayStr()) { dd[x.id] = Date.now(); star(`task:${date}:${x.id}`, 1, date, x.label); save(); }
+  });
   return {tasks: tasks.concat(cls).sort((a, b) => (a.time || '99').localeCompare(b.time || '99') || (a.seq || 0) - (b.seq || 0)), rests, fromSheet: true};
+}
+function partAuto(date, sid) {   // 能自动判断做没做完的小项
+  if (sid === 'word') return learnedOn(date) !== null;
+  if (sid === 'ket') return ketDoneOn(date);
+  if (sid === 'wenyan') return Object.values(DATA.wenyan || {}).includes(date);
+  if (sid === 'listen' || sid === 'eread' || sid === 'abc' || sid === 'erecite' || sid === 'homework' || sid === 'bedread' || sid === 'math') return !!((DATA.taskDone[date] || {})[sid]);
+  return false;
 }
 function isLite(date) { return !!(DATA.lite || {})[date]; }
 function planFor(date, noSheet) {
@@ -784,7 +807,12 @@ const LOCAL = {
   },
   'POST /api/task'(b) {
     const {date, task, done} = b; const t = tasksFor(date).find(x => x.id === task);
-    if (!t) return {error: 'no such task'};
+    if (!t) {
+      if (date > todayStr()) return {error: '不能提前打卡哦'};
+      DATA.taskDone[date] = DATA.taskDone[date] || {};
+      if (done) DATA.taskDone[date][task] = Date.now(); else { delete DATA.taskDone[date][task]; tomb(`taskDone/${date}/${task}`); }
+      tasksFor(date); refreshBonus(date); save(); return {ok: true};   // 小项状态由 partAuto 读这里
+    }
     const today = todayStr();
     if (date > today) return {error: '不能提前打卡哦'};
     if (date < addDays(today, -1) && String(b.pin) !== String(pin())) return {error: 'needpin'};
@@ -816,10 +844,10 @@ const LOCAL = {
     const out = {best: r.best};
     if (ok >= PASS) {
       const wt = tasksFor(date).find(t => t.type === 'word');
-      if (wt && !learnedOn(date) && currentCard() === day) {
-        DATA.taskDone[date] = DATA.taskDone[date] || {};
-        DATA.taskDone[date][wt.id] = Date.now(); star(`task:${date}:${wt.id}`, 2, date, wt.label);
-        DATA.wordLearn[day] = date; refreshBonus(date); out.learned = true;
+      if (!learnedOn(date) && currentCard() === day) {   // 按家长安排的日子没有单独的「PET」任务，也要记背完
+        DATA.wordLearn[day] = date; out.learned = true;
+        if (wt) { DATA.taskDone[date] = DATA.taskDone[date] || {}; DATA.taskDone[date][wt.id] = Date.now(); star(`task:${date}:${wt.id}`, 2, date, wt.label); }
+        refreshBonus(date);
       }
       const due = reviewsDue(date).find(v => v.day === day && !v.done);
       if (due) { DATA.wordReview[day + ':' + due.stage] = date; star(`review:${day}:${due.stage}`, 1, date, `复习 Day ${day}（${due.name}）`); out.reviewed = due.name; }
@@ -1123,6 +1151,12 @@ LOCAL['POST /api/ket/result'] = b => {
 /* 纸质听写打勾（11/20 家长要）：孩子背纸质单词卡、家长报听写，在程序里点出写错的词就算完成；
    写错的词进「生词循环」（和 KET 生词同一套记忆曲线：第 2、4、7、15、30 天在 KET 复习里再出现）+ 错词本 */
 function addWrongBook(w, src) { const bk = DATA.wrongBook = DATA.wrongBook || {}, e = bk[w.w] || {w: w.w, ipa: w.ipa || '', zh: w.zh || '', src, n: 0}; e.n++; e.last = todayStr(); bk[w.w] = e; }
+LOCAL['POST /api/part'] = b => {   // 点小项的 ✓
+  const {date, line, key, done} = b, dd = DATA.taskDone[date] = DATA.taskDone[date] || {};
+  if (date > todayStr()) return {error: '不能提前打卡哦'};
+  if (done) dd[key] = Date.now(); else { delete dd[key]; tomb(`taskDone/${date}/${key}`); if (dd[line]) { delete dd[line]; tomb(`taskDone/${date}/${line}`); unstar(`task:${date}:${line}`); } }
+  tasksFor(date); refreshBonus(date); save(); return {ok: true, lineDone: !!dd[line]};
+};
 LOCAL['POST /api/dictmark'] = b => {
   const date = b.date || todayStr(), deck = b.deck, day = +b.day, wrong = new Set(b.wrong || []);   // 可补昨天
   const miss = w => { LOCAL['POST /api/ket/result']({item: w, ok: false}); addWrongBook(w, deck === 'ket' ? 'KET' : 'PET'); };
@@ -1144,9 +1178,10 @@ LOCAL['POST /api/dictmark'] = b => {
     DATA.wordTest = DATA.wordTest || {}; const r = DATA.wordTest[day] || {best: 0}; r.paper = {date, wrong: wrong.size}; DATA.wordTest[day] = r;
     if (deck === 'pet') {
       const wt = tasksFor(date).find(t => t.type === 'word');
-      if (wt && !learnedOn(date) && currentCard() === day) {
-        DATA.taskDone[date] = DATA.taskDone[date] || {}; DATA.taskDone[date][wt.id] = Date.now(); star(`task:${date}:${wt.id}`, 2, date, wt.label);
-        DATA.wordLearn[day] = date; refreshBonus(date);
+      if (!learnedOn(date) && currentCard() === day) {
+        DATA.wordLearn[day] = date;
+        if (wt) { DATA.taskDone[date] = DATA.taskDone[date] || {}; DATA.taskDone[date][wt.id] = Date.now(); star(`task:${date}:${wt.id}`, 2, date, wt.label); }
+        refreshBonus(date);
       }
     }
     const due = reviewsDue(date).find(v => v.day === day && !v.done);
@@ -1452,6 +1487,7 @@ async function today() {
     return `<div style="--i:${ri++};--c:${bgc}" class="tt ${t.done ? 'done' : ''} ${now ? 'now' : ''} ${t.type === 'class' ? 'cls' : ''}" data-task="${t.id}" data-done="${t.done ? 0 : 1}" data-type="${t.type}" ${goTo && !t.done ? `data-go="${goTo}"` : ''}>
       ${t.done ? '<span class="stamp">已完成</span>' : ''}<span class="tico">${em}${t.no ? `<i>${t.no}</i>` : ''}</span>
       <div class="tt-mid"><b>${t.type === 'class' ? '<span class="tag cls">课</span>' : ''}${esc(t.label)}</b>${sb ? `<small>${sb}</small>` : ''}
+        ${t.parts ? `<div class="pts" data-nogo="1">${t.parts.map(p => `<button class="pt ${p.done || t.done ? 'on' : ''}" data-part="${p.key}" data-line="${t.id}" data-pdone="${p.done || t.done ? 0 : 1}">${p.done || t.done ? '✓' : '○'} ${esc(p.label)}</button>`).join('')}</div>` : ''}
         ${t.type === 'review' && pend.length ? `<small>${pend.map(v => `<span class="pill" data-rv="${v.day}">复习 Day ${v.day}</span>`).join('')}</small>` : ''}
         ${t.type === 'class' ? '' : `<span class="act">${act}</span>`}
         ${t.type === 'class' ? '' : (() => { const run = DATA.timer && DATA.timer.date === d.date && DATA.timer.id === t.id;
@@ -1502,6 +1538,15 @@ async function today() {
   $$('[data-rv]').forEach(el => el.onclick = e => { e.stopPropagation(); state.cardDay = +el.dataset.rv; state.mode = 'zh'; state.deck = 'pet'; go('words'); });
   $$('[data-tstart]').forEach(b => b.onclick = e => { e.stopPropagation(); stopTimer(); DATA.timer = {date: d.date, id: b.dataset.tstart, t: Date.now()}; save(); chime(false); render(); });
   $$('[data-tstop]').forEach(b => b.onclick = e => { e.stopPropagation(); const m = stopTimer(); toast(`停了，用时 ${m} 分钟`); render(); });
+  $$('[data-part]').forEach(b => b.onclick = async e => {
+    e.stopPropagation();
+    const on = b.dataset.pdone === '1', before = rewardsState(d.date).daily.unlocked;
+    const r = LOCAL['POST /api/part']({date: d.date, line: b.dataset.line, key: b.dataset.part, done: on});
+    if (r.error) { toast(r.error); return; }
+    await render();
+    if (on) { chime(false); if (r.lineDone) { const el = document.querySelector(`[data-task="${b.dataset.line}"] .check`); if (el) el.classList.add('pop'); toast('这一行全部完成 ✓'); } }
+    if (!before && rewardsState(d.date).daily.unlocked) bigCelebrate('🎮', '今天全部完成！', '试炼 2 局 / 排位 1 局 / 手机 20 分钟，自己选一个；周末再 +15 分钟', '去选奖励', () => go('rewards'));
+  });
   $$('[data-min]').forEach(inp => { inp.onclick = e => e.stopPropagation(); inp.onchange = () => { setMin(d.date, inp.dataset.min, inp.value); inp.blur(); toast(inp.value ? `记下了：${inp.value} 分钟` : '已清空'); }; });
   $$('[data-task]').forEach(el => el.onclick = async e => {
     if (e.target.closest('[data-nogo]')) return;
