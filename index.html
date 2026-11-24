@@ -470,6 +470,9 @@ nav button.on svg{background:var(--pri-soft);animation:hop .45s cubic-bezier(.3,
 .stamp{position:absolute;right:52px;top:50%;transform:translateY(-50%) rotate(-12deg);border:2px solid var(--ok);color:var(--ok);border-radius:8px;padding:2px 8px;font:800 13px/1.2 -apple-system,"PingFang SC",sans-serif;opacity:.75;pointer-events:none}
 .wk i.we{border-style:dotted}.hero-card .wk i.we:not(.full):not(.today){color:#ffe7c2}.wk i{width:22px;height:22px;font-size:11px}
 .tile b{white-space:pre-line}.tile.yd{background:var(--gold-soft)}
+.tile.wyt.ok{background:var(--ok-soft)}
+.ywdone{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ok-soft);border-radius:16px;padding:14px 16px;margin:4px 0 12px;box-shadow:inset 0 0 0 2px rgba(22,163,110,.35)}
+.ywdone b{color:var(--ok);font-size:16px}
 
 .pts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .pt{border:0;border-radius:10px;padding:5px 10px;font:600 12.5px/1.3 -apple-system,"PingFang SC",sans-serif;background:var(--card);color:var(--sub);cursor:pointer;text-align:left;transition:transform .12s}
@@ -504,6 +507,15 @@ let DATA = lsGet(LS_DATA, null) || emptyData();
 let CFG = lsGet(LS_CFG, null);
 function save() { DATA.savedAt = new Date().toISOString(); lsSet(LS_DATA, DATA); if (!save.quiet) cloudSoon(); }
 function tomb(path) { DATA.tomb = DATA.tomb || {}; DATA.tomb[path] = Date.now(); }   // 记下删除（取消打勾等），同步时别被另一台设备的旧数据加回来
+/* 语文一课一贴：看完的课 DATA.ywSeen[课名] = 日期；取消时留删除记号，别被另一台设备加回来 */
+function ywSeen() { DATA.ywSeen = DATA.ywSeen || {}; return DATA.ywSeen; }
+function setYwSeen(t, on) {
+  const k = String(t).replace(/\//g, '／'), s = ywSeen();
+  if (on) { const d = new Date(); s[k] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+  else { delete s[k]; tomb('ywSeen/' + k); }
+  save();
+}
+const ywSeenOf = t => ywSeen()[String(t).replace(/\//g, '／')];
 
 function ensureRewards() {
   if (DATA.rewards === null && CFG) {
@@ -1933,15 +1945,20 @@ async function ywView() {
       <h1 style="font-size:22px">${esc(x.t)}</h1>
       <div class="card" style="padding:8px"><img src="data:image/jpeg;base64,${x.img}" alt="${esc(x.t)}" style="width:100%;border-radius:12px;display:block"></div>
       <div class="faint" style="margin:0 4px 8px">两指张开可以放大看</div>
+      ${ywSeenOf(x.t) ? `<div class="ywdone"><b>✓ 已看完 · ${ywSeenOf(x.t).slice(5).replace('-', '/')}</b><button class="btn soft sm" id="ywUnseen">取消标记</button></div>`
+        : `<button class="btn block" id="ywSeen" style="margin:4px 0 12px">看完了 ✓</button>`}
       <div class="row between"><button class="btn soft sm" id="ywPrev" ${i <= 0 ? 'disabled' : ''}>‹ ${i > 0 ? esc(it[i - 1].t) : ''}</button><button class="btn soft sm" id="ywNext" ${i >= it.length - 1 ? 'disabled' : ''}>${i < it.length - 1 ? esc(it[i + 1].t) : ''} ›</button></div>`;
     bindYwSeg();
     $('#ywBack').onclick = () => { state.ywi = null; render(); scrollTo(0, 0); };
     $('#ywPrev').onclick = () => { state.ywi = i - 1; render(); scrollTo(0, 0); };
     $('#ywNext').onclick = () => { state.ywi = i + 1; render(); scrollTo(0, 0); };
+    if ($('#ywSeen')) $('#ywSeen').onclick = () => { setYwSeen(x.t, true); toast('看完了，真棒！👍'); render(); };
+    if ($('#ywUnseen')) $('#ywUnseen').onclick = () => { setYwSeen(x.t, false); render(); };
     return;
   }
-  app.innerHTML = ywSeg() + `<div style="margin-top:10px"><div class="sub">${esc(YW.title)}</div><h1>语文一课一贴</h1></div>
-    <div class="card"><div class="tiles" style="margin-top:0">${it.map((x, i) => `<a class="tile ${/园地/.test(x.t) ? 'yd' : ''}" data-ywi="${i}"><b>${esc(x.t.replace(/^(第\d+课)\s*/, '$1\n'))}</b><span>去看 ›</span></a>`).join('')}</div></div>`;
+  app.innerHTML = ywSeg() + `<div style="margin-top:10px"><div class="sub">${esc(YW.title)} · 已看完 ${it.filter(x => ywSeenOf(x.t)).length} / ${it.length}</div><h1>语文一课一贴</h1></div>
+    <div class="card"><div class="tiles" style="margin-top:0">${it.map((x, i) => { const ok = ywSeenOf(x.t);
+      return `<a class="tile wyt ${/园地/.test(x.t) ? 'yd' : ''} ${ok ? 'ok' : ''}" data-ywi="${i}">${ok ? '<i class="wyok">✓</i>' : ''}<b>${esc(x.t.replace(/^(第\d+课)\s*/, '$1\n'))}</b>${ok ? '<span style="color:var(--ok)">✓ 已看完</span>' : '<span>去看 ›</span>'}</a>`; }).join('')}</div></div>`;
   bindYwSeg();
   $$('[data-ywi]').forEach(el => el.onclick = () => { state.ywi = +el.dataset.ywi; render(); scrollTo(0, 0); });
 }
