@@ -528,6 +528,39 @@ nav button.on svg{background:var(--pri-soft);animation:hop .45s cubic-bezier(.3,
 .brk.run{background:var(--pri-soft);color:var(--pri)}.brk.late{background:var(--warn-soft);color:var(--warn)}
 .brk .faint{font-weight:600;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gled{margin-top:10px;font-size:13px}.gled div{display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid rgba(255,255,255,.25)}
+#app[data-view=today] .tt{align-items:center}
+#app[data-view=today] .tt-mid{justify-content:center}
+#app[data-view=today] .tt-mid small{order:2;margin-top:1px}
+.tt-r{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none;width:62px}
+.tt-r .tbtn{padding:4px 10px;font-size:12px}
+.amin{display:flex;flex-direction:column;align-items:flex-end;font-size:10.5px;color:var(--faint);line-height:1.2;cursor:text}
+.amin span{display:flex;align-items:baseline;gap:2px;font-size:11px;color:var(--sub)}
+.amin input{width:42px;border:0;border-bottom:1.5px solid var(--line);border-radius:0;background:transparent;padding:1px 0;font:700 15px/1.2 -apple-system,"PingFang SC",sans-serif;color:var(--pri);text-align:center;-moz-appearance:textfield}
+.amin input::-webkit-outer-spin-button,.amin input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.amin input:focus{outline:none;border-bottom-color:var(--pri)}
+#app[data-view=today] .tt .check{margin-left:2px}
+#app[data-view=today] .tt{gap:8px}
+#app[data-view=today] .tt-mid{min-width:0}
+#app[data-view=today] .tt.cls .tt-mid b{font-size:14px}
+/* 11/24 家长：每行一样高、字一样大、字别太大；右栏 = 时间 + 「实际用时 __ 分」一行 */
+#app[data-view=today] .tt{min-height:52px;padding:7px 10px;gap:9px;align-items:center;border-radius:12px}
+#app[data-view=today] .tico{width:30px;height:30px;font-size:17px;border-radius:9px}
+#app[data-view=today] .tt b,#app[data-view=today] .pt{font:600 14px/1.5 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink)}
+#app[data-view=today] .pts{display:block;margin:0}
+#app[data-view=today] .pt{display:inline;background:none;border:0;border-radius:0;padding:0;margin:0 10px 0 0;text-align:left}
+#app[data-view=today] .pt.on{color:var(--ok)}
+#app[data-view=today] .tt.done b,#app[data-view=today] .tt.done .pt{color:var(--sub)}
+#app[data-view=today] .tt-r{width:auto;gap:2px;align-items:flex-end}
+.tm2{font-size:11.5px;color:var(--faint);font-variant-numeric:tabular-nums;white-space:nowrap}
+#app[data-view=today] .amin{flex-direction:row;align-items:center;gap:3px;font-size:11.5px;color:var(--faint);white-space:nowrap}
+#app[data-view=today] .amin span{font-size:11.5px;color:var(--faint);gap:3px;align-items:center}
+#app[data-view=today] .amin input{width:30px;font:600 13px/1.2 -apple-system,"PingFang SC",sans-serif;padding:0;border-bottom-width:1px}
+#app[data-view=today] .tt .check{width:22px;height:22px;font-size:12px}
+#app[data-view=today] .tt.cls{min-height:40px}
+#app[data-view=today] .tt.cls b{font-size:14px}
+#app[data-view=today] .tts{gap:6px}
+#app[data-view=today] .pt{display:inline-block;max-width:100%;vertical-align:top}
+@media(max-width:480px){#app[data-view=today] .tt b,#app[data-view=today] .pt{font-size:13.5px;line-height:1.45}#app[data-view=today] .pt{margin-right:8px}#app[data-view=today] .tt{gap:8px;padding:7px 8px}}
 </style>
 </head>
 <body>
@@ -1522,7 +1555,7 @@ function weekText(w, date) {
 function stopTimer() {
   const tm = DATA.timer; if (!tm) return 0;
   const m = Math.max(1, Math.round((Date.now() - tm.t) / 60000));
-  setMin(tm.date, tm.id, ((DATA.taskMin || {})[tm.date] || {})[tm.id] ? (DATA.taskMin[tm.date][tm.id] + m) : m);   // 分几段计时就累加
+  // 11/24 家长定：实际用时由家长自己填，计时只用来算磨蹭，不再自动填
   delete DATA.timer; save(); return m;
 }
 setInterval(() => $$('.tmr').forEach(el => { const s = Math.floor((Date.now() - +el.dataset.t0) / 1000); el.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }), 1000);
@@ -1655,13 +1688,13 @@ async function today() {
     const act = t.type === 'class' ? '<span class="faint">今天的课</span>' : t.done ? '<em class="okt">✓ 已完成</em>' : goTo ? `${now ? '现在 · ' : ''}去做 ›` : now ? '现在 · 做完点 ○' : '做完点 ○';
     return `<div style="--i:${ri++};--c:${bgc}" class="tt ${t.done ? 'done' : ''} ${now ? 'now' : ''} ${t.type === 'class' ? 'cls' : ''}" data-task="${t.id}" data-done="${t.done ? 0 : 1}" data-type="${t.type}" ${goTo && !t.done ? `data-go="${goTo}"` : ''}>
       ${t.done ? '<span class="stamp">已完成</span>' : ''}<span class="tico">${em}${t.no ? `<i>${t.no}</i>` : ''}</span>
-      <div class="tt-mid">${t.parts && t.type !== 'class' ? '' : `<b>${t.type === 'class' ? '<span class="tag cls">课</span>' : ''}${esc(t.label)}</b>`}${sb ? `<small>${sb}</small>` : ''}
+      <div class="tt-mid">${t.parts && t.type !== 'class' ? '' : `<b>${t.type === 'class' ? '<span class="tag cls">课</span>' : ''}${esc(t.label)}</b>`}
         ${t.parts ? `<div class="pts" data-nogo="1">${t.parts.map(p => `<button class="pt ${p.done || t.done ? 'on' : ''}" data-part="${p.key}" data-sid="${p.sid}" data-line="${t.id}" data-pdone="${p.done || t.done ? 0 : 1}">${p.done || t.done ? '✓' : '○'} ${esc(p.label)}</button>`).join('')}</div>` : ''}
         ${t.type === 'review' && pend.length ? `<small>${pend.map(v => `<span class="pill" data-rv="${v.day}">复习 Day ${v.day}</span>`).join('')}</small>` : ''}
-        ${t.type === 'class' ? '' : `<span class="act">${act}</span>`}
-        ${t.type === 'class' ? '' : (() => { const run = DATA.timer && DATA.timer.date === d.date && DATA.timer.id === t.id; if (!run && !now) return '';
-          return `<div class="mins" data-nogo="1">${run ? `<button class="tbtn on" data-tstop="${t.id}">⏸ <span class="tmr" data-t0="${DATA.timer.t}">00:00</span></button>` : t.done || !isToday || !now ? '' : `<button class="tbtn" data-tstart="${t.id}">▶ 开始</button>`}
-            <label>⏱ 用时<input type="number" inputmode="numeric" min="0" max="300" data-min="${t.id}" value="${minOf(d.date, t.id) ?? ''}" placeholder="—">分钟</label></div>`; })()}</div>
+        ${t.type === 'class' ? '' : `<span class="act">${act}</span>`}</div>
+      ${t.type === 'class' ? '' : (() => { const run = DATA.timer && DATA.timer.date === d.date && DATA.timer.id === t.id;   // 右边：开始/计时（只在现在这项）+ 实际用时（家长填）
+        return `<div class="tt-r" data-nogo="1">${sb ? `<span class="tm2">${sb}</span>` : ''}
+          <label class="amin">实际用时<span><input type="number" inputmode="numeric" min="0" max="300" data-min="${t.id}" value="${minOf(d.date, t.id) ?? ''}" placeholder="—">分</span></label></div>`; })()}
       ${t.type === 'class' ? '' : `<span class="check" data-tick="1">${t.done ? '✓' : ''}</span>`}</div>`;
   };
   const rest = z => `<div class="rest tt-rest"><span>${z.sleep ? esc(z.text) : `☕ ${z.text ? esc(z.text) : `休息 ${z.dur} 分钟`}，喝水、站起来动一动`}</span></div>`;
@@ -1682,7 +1715,6 @@ async function today() {
   const mwDue = mwAll().filter(z => mwInfo(z, todayIso()).dueNow).length, rdOk = (DATA.readLog || {})[d.date];
   x += `<div class="qbar"><button id="openMath"><em>🧮</em>数学错题${mwDue ? ` ${mwDue}` : ''}</button><button id="openRead"><em>📚</em>阅读记录${rdOk ? ' ✓' : ''}</button><button id="openMedia"><em>📺</em>素材库</button><button id="share"><em>📤</em>发给家长</button></div>`;
   app.innerHTML = x;
-  TL.items.forEach(z => { if (z.act !== null && minOf(d.date, z.id) === null) { save.quiet = true; setMin(d.date, z.id, Math.max(1, z.act)); save.quiet = false; } });
 
   $('#share').onclick = async () => {
     const text = daySummary(d.date);
@@ -1713,7 +1745,7 @@ async function today() {
   };
   $$('[data-rv]').forEach(el => el.onclick = e => { e.stopPropagation(); state.cardDay = +el.dataset.rv; state.mode = 'zh'; state.deck = 'pet'; go('words'); });
   $$('[data-tstart]').forEach(b => b.onclick = e => { e.stopPropagation(); stopTimer(); DATA.timer = {date: d.date, id: b.dataset.tstart, t: Date.now()}; markStart(d.date, b.dataset.tstart, Date.now()); save(); chime(false); render(); });
-  $$('[data-tstop]').forEach(b => b.onclick = e => { e.stopPropagation(); const m = stopTimer(); toast(`停了，用时 ${m} 分钟`); render(); });
+  $$('[data-tstop]').forEach(b => b.onclick = e => { e.stopPropagation(); stopTimer(); toast("计时暂停了"); render(); });
   $$('[data-part]').forEach(b => b.onclick = async e => {
     e.stopPropagation();
     const on = b.dataset.pdone === '1', before = rewardsState(d.date).daily.unlocked;
@@ -1726,8 +1758,12 @@ async function today() {
   $$('[data-min]').forEach(inp => { inp.onclick = e => e.stopPropagation(); inp.onchange = () => { setMin(d.date, inp.dataset.min, inp.value); inp.blur(); toast(inp.value ? `记下了：${inp.value} 分钟` : '已清空'); }; });
   $$('[data-task]').forEach(el => el.onclick = async e => {
     if (e.target.closest('[data-nogo]')) return;
-    if (el.dataset.go && !e.target.closest('[data-tick]')) { openTask(el.dataset.go); return; }
-    toggleTask(el.dataset.task, el.dataset.done === '1', el.dataset.type);
+    if (e.target.closest('[data-tick]')) { toggleTask(el.dataset.task, el.dataset.done === '1', el.dataset.type); return; }
+    if (el.dataset.type === 'class') return;
+    const fresh = el.dataset.done === '1' && d.date === todayIso() && !(((DATA.tStart || {})[d.date] || {})[el.dataset.task]);   // 11/24 家长定：点进任务就是开始
+    if (el.dataset.done === '1' && d.date === todayIso()) markStart(d.date, el.dataset.task, Date.now());
+    if (el.dataset.go) { openTask(el.dataset.go); return; }
+    if (el.dataset.done === '1') { toast(fresh ? '开始了 ⏱ 做完点右边的 ○' : '做完点右边的 ○'); render(); }
   });
 }
 async function toggleTask(task, on, type) {
