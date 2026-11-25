@@ -706,6 +706,19 @@ function rdDel(date) { if (DATA.readLog) { delete DATA.readLog[date]; tomb('read
 const vidSeenOf = u => (DATA.vidSeen || {})[hashKey(u)];
 function setVidSeen(u, on) { DATA.vidSeen = DATA.vidSeen || {}; const k = hashKey(u); if (on) DATA.vidSeen[k] = todayStr(); else { delete DATA.vidSeen[k]; tomb('vidSeen/' + k); } save(); }
 /* 成绩记录：DATA.scores[id] = {d 日期, s 科目, k 考试, v 分数, f 满分} */
+/* 11/25 家长要：清空某一天的全部打卡（点错了用）；连带撤掉这天记的背完/复习/看完等，都留删除记号，云同步不会加回来 */
+function clearDay(date) {
+  const n0 = JSON.stringify(DATA).length, del = (obj, path, k) => { if (obj && k in obj) { delete obj[k]; tomb(path + '/' + k); } };
+  ['taskDone', 'tStart', 'taskMin', 'readLog', 'lite', 'ketMarks'].forEach(f => del(DATA[f], f, date));
+  const byVal = (obj, path) => obj && Object.keys(obj).filter(k => obj[k] === date).forEach(k => del(obj, path, k));
+  byVal(DATA.wordLearn, 'wordLearn'); byVal(DATA.wordReview, 'wordReview'); byVal(DATA.wenyan, 'wenyan'); byVal(DATA.gushi, 'gushi'); byVal(DATA.ywSeen, 'ywSeen'); byVal(DATA.vidSeen, 'vidSeen');
+  if (DATA.ket) byVal(DATA.ket.done, 'ket/done');
+  Object.entries(DATA.mw || {}).forEach(([id, x]) => x.tries && del(x.tries, `mw/${id}/tries`, date));
+  Object.keys(DATA.stars || {}).filter(k => DATA.stars[k].date === date).forEach(k => unstar(k));
+  del(DATA.claims, 'claims', 'daily:' + date);
+  if (DATA.timer && DATA.timer.date === date) delete DATA.timer;
+  save(); return n0 !== JSON.stringify(DATA).length;
+}
 function scAdd(o) { DATA.scores = DATA.scores || {}; DATA.scores['s' + Date.now().toString(36)] = o; save(); }
 function scDel(id) { if (DATA.scores) { delete DATA.scores[id]; tomb('scores/' + id); } save(); }
 
@@ -2771,6 +2784,8 @@ async function parent() {
   x += sec('set', `    <div class="card"><div class="row between"><h2>☁️ 云同步</h2><span class="tag" style="${CFG && CFG.gt ? 'background:var(--ok-soft);color:var(--ok)' : 'background:var(--warn-soft);color:var(--warn)'}">${CFG && CFG.gt ? '已开启' : '未开启'}</span></div>
       <div class="sub" style="margin:4px 0 12px">${CFG && CFG.gt ? `打卡记录加密后自动存到网上，手机、电脑、平板看到同一份，换设备也不丢。上次同步：${DATA.cloudAt ? new Date(DATA.cloudAt).toLocaleString('zh-CN', {month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}) : '还没有'}${cloudLast ? `<br><span style="color:var(--warn)">上次没连上（${esc(cloudLast)}），联网后会自动再试</span>` : ''}` : '还没开启：记录只存在这台设备上。请家长导入带云同步的设置链接。'}</div>
       ${CFG && CFG.gt ? '<button class="btn soft sm" id="cloudNow">立即同步</button>' : ''}</div>
+    <div class="card"><h2>🧹 清空某一天的打卡</h2><div class="sub" style="margin:4px 0 10px">点错了用：把这一天的勾、背完、复习、看完、星星全部清掉，其他日子不动</div>
+      <div class="row" style="gap:8px"><input id="clrD" type="date" value="${t}" style="flex:1"><button class="btn soft sm" id="clrGo">清空这一天</button></div></div>
     <div class="card"><div class="row between"><h2>🛟 保底模式</h2><span class="tag" style="${isLite(t) ? 'background:var(--warn-soft);color:var(--warn)' : ''}">${isLite(t) ? '今天已开启' : '未开启'}</span></div>
       <div class="sub" style="margin:4px 0 12px">有晚课、太累或生病时用：今天只做「学校作业 + PET 单词 + 阅读」，做完就算全部完成，奖励和连续天数照算。</div>
       <button class="btn ${isLite(t) ? 'soft' : ''} sm" id="liteBtn">${isLite(t) ? '关掉，恢复完整任务' : '今天开启保底模式'}</button></div>
@@ -2808,6 +2823,10 @@ async function parent() {
   if ($('#wsBk')) $('#wsBk').onclick = async () => { if (await doBackup()) render(); else toast('这台设备发不了文件，请到下面「设置」里导出'); };
   if ($('#cloudNow')) $('#cloudNow').onclick = async () => { toast('正在同步…'); await cloudSync(); toast(cloudLast ? '没连上，稍后再试' : '同步好了 ☁️'); render(); };
   bindParentExtra();
+  if ($('#clrGo')) $('#clrGo').onclick = () => { const b = $('#clrGo'), d0 = $('#clrD').value;
+    if (!d0) { toast('先选日期'); return; }
+    if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = `确定清空 ${d0.slice(5).replace('-', '/')}？再点一次`; b.classList.remove('soft'); setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.textContent = '清空这一天'; b.classList.add('soft'); } }, 5000); return; }
+    toast(clearDay(d0) ? `${d0.slice(5).replace('-', '/')} 的打卡已清空` : '这一天本来就没有记录'); render(); };
   $('#liteBtn').onclick = () => askPin(isLite(t) ? '关掉保底模式' : '今天开启保底模式', async p => {
     if (String(p) !== String(pin())) return {error: '家长密码不对'};
     DATA.lite = DATA.lite || {}; if (isLite(t)) { delete DATA.lite[t]; tomb('lite/' + t); } else DATA.lite[t] = 1; save(); refreshBonus(t); toast(isLite(t) ? '今天只做 3 项 🛟' : '已恢复完整任务'); render(); return {};
