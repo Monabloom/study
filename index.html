@@ -710,7 +710,7 @@ function setVidSeen(u, on) { DATA.vidSeen = DATA.vidSeen || {}; const k = hashKe
 function clearDay(date) {
   const n0 = JSON.stringify(DATA).length, del = (obj, path, k) => { if (obj && k in obj) { delete obj[k]; tomb(path + '/' + k); } };
   ['taskDone', 'tStart', 'taskMin', 'readLog', 'lite', 'ketMarks'].forEach(f => del(DATA[f], f, date));
-  const byVal = (obj, path) => obj && Object.keys(obj).filter(k => obj[k] === date).forEach(k => del(obj, path, k));
+  const byVal = (obj, path) => obj && Object.keys(obj).filter(k => obj[k] === date).forEach(k => { del(obj, path, k); DATA.tombV = DATA.tombV || {}; DATA.tombV[path + '/' + k] = date; });
   byVal(DATA.wordLearn, 'wordLearn'); byVal(DATA.wordReview, 'wordReview'); byVal(DATA.wenyan, 'wenyan'); byVal(DATA.gushi, 'gushi'); byVal(DATA.ywSeen, 'ywSeen'); byVal(DATA.vidSeen, 'vidSeen');
   if (DATA.ket) byVal(DATA.ket.done, 'ket/done');
   Object.entries(DATA.mw || {}).forEach(([id, x]) => x.tries && del(x.tries, `mw/${id}/tries`, date));
@@ -1479,14 +1479,16 @@ function mergeData(a, b) {   // 两份打卡记录合并：都有的保留，冲
     else o[k] = nx === 'a' ? vx : vy; }); return o; };
   const m = deep(a, b, newer === a ? 'a' : 'b');
   const tombs = {...(b.tomb || {})}; Object.entries(a.tomb || {}).forEach(([p, t]) => { tombs[p] = Math.max(t, tombs[p] || 0); });
+  const tv = {...(b.tombV || {}), ...(a.tombV || {})};   // 11/25：按值删除的记号——只删掉等于这个值的，另一台设备上不同的值保留
   const cut = Date.now() - 60 * 864e5;
   Object.entries(tombs).forEach(([p, t]) => {
-    if (t < cut) { delete tombs[p]; return; }
+    if (t < cut) { delete tombs[p]; delete tv[p]; return; }
     const ks = p.split('/'), get = o => ks.reduce((v, k) => v && v[k], o);
-    const keep = [a, b].some(side => get(side) !== undefined && (side.savedAt ? Date.parse(side.savedAt) : 0) > t);
+    const keep = [a, b].some(side => { const v = get(side); return v !== undefined && ((side.savedAt ? Date.parse(side.savedAt) : 0) > t || (p in tv && v !== tv[p])); });
+    if (keep && p in tv) { const vs = [a, b].map(get).filter(v => v !== undefined && v !== tv[p]); const par = ks.slice(0, -1).reduce((v, k) => v && v[k], m); if (par && vs.length) par[ks[ks.length - 1]] = vs[0]; }
     if (!keep) { const par = ks.slice(0, -1).reduce((v, k) => v && v[k], m); if (par) delete par[ks[ks.length - 1]]; }
   });
-  m.tomb = tombs; m.savedAt = newer.savedAt; return m;
+  m.tomb = tombs; m.tombV = tv; m.savedAt = newer.savedAt; return m;
 }
 let cloudTimer = null, cloudBusy = false, cloudLast = '';
 function cloudSoon() { if (!CFG || !CFG.gt || !CFG.gid) return; clearTimeout(cloudTimer); cloudTimer = setTimeout(() => cloudSync(), 3000); }
