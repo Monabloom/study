@@ -600,6 +600,25 @@ nav button.on svg{background:var(--pri-soft);animation:hop .45s cubic-bezier(.3,
 .rest2 span{font-size:11px;color:var(--faint);background:var(--bg);border-radius:99px;padding:2px 10px}
 #app[data-view=today] .qbar{margin-top:12px}
 #app[data-view=today] .qbar button{background:var(--card);box-shadow:0 1px 3px rgba(20,20,60,.06);color:var(--ink);font-weight:600}
+#app[data-view=today] .tt-r{flex-direction:row;align-items:center;gap:10px;width:auto}
+#app[data-view=today] .amin{flex-direction:row}
+#app[data-view=today] .amin span{gap:2px}
+#app[data-view=today] .tt.cls .tt-r{margin-right:85px}
+@media(max-width:480px){#app[data-view=today] .tt-r{flex-direction:column;align-items:flex-end;gap:1px}#app[data-view=today] .tt.cls .tt-r{margin-right:31px}}
+/* 11/25 家长端 */
+.ph{display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px}.ph h1{margin:0;font-size:22px}
+.ptabs{position:sticky;top:calc(env(safe-area-inset-top,0px) + 6px);z-index:5;margin:12px 0 4px}
+#app[data-view=parent] .card{border-radius:18px;padding:16px 18px;box-shadow:0 1px 3px rgba(20,20,60,.06)}
+#app[data-view=parent] .card h2{font-size:16px}
+#app[data-view=parent] .card:before{display:none!important}
+#app[data-view=parent] .pstat div{background:var(--bg)}
+.psum{padding:16px 14px!important}
+.pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.pgrid div{background:var(--bg);border-radius:14px;padding:10px 6px;text-align:center;font-size:12px;color:var(--sub)}
+.pgrid b{display:block;font-size:22px;color:var(--ink);font-weight:800;margin-bottom:2px;font-variant-numeric:tabular-nums}.pgrid b small{font-size:12px;color:var(--faint);font-weight:600}
+.pgrid b.bad{color:var(--warn)}
+.pleft{margin-top:12px;font-size:13px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.pleft em{font-style:normal;background:var(--warn-soft);color:var(--warn);border-radius:99px;padding:3px 10px;font-weight:600}
+.pleft.ok{color:var(--ok);font-weight:700}
 </style>
 </head>
 <body>
@@ -632,7 +651,7 @@ function tomb(path) { DATA.tomb = DATA.tomb || {}; DATA.tomb[path] = Date.now();
 function ywSeen() { DATA.ywSeen = DATA.ywSeen || {}; return DATA.ywSeen; }
 function setYwSeen(t, on) {
   const k = String(t).replace(/\//g, '／'), s = ywSeen();
-  if (on) { const d = new Date(); s[k] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+  if (on) { const d = new Date(); s[k] = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; save(); if (typeof autoTaskDone === 'function') autoTaskDone(s[k], ['ywtie']); }
   else { delete s[k]; tomb('ywSeen/' + k); }
   save();
 }
@@ -820,7 +839,7 @@ function eveOrder() {   // 晚上任务顺序：默认 EVENING + 阅读；家长
 /* 家长在课表格子里写的学习安排 → 任务清单。一句里有几件事就拆成几项，能对上的用固定任务（PET/KET 等会自动打勾） */
 const PLAN_MAP = [
   [/学校作业|寒假作业/, 'homework'], [/英语听力/, 'listen'], [/英语阅读/, 'eread'], [/背\s*PET|PET\s*\d*\s*个?单词/i, 'word'], [/KET/i, 'ket'],
-  [/短文/, 'erecite'], [/ABC/i, 'abc'], [/语文背|文言文|背.*古文/, 'wenyan'], [/阅读\s*\d+\s*分钟|刷牙洗脸/, 'bedread'], [/数学计算|口算/, 'math'], [/古诗/, 'gushi'], [/错题/, 'mathwrong'],
+  [/短文/, 'erecite'], [/ABC/i, 'abc'], [/语文背|文言文|背.*古文/, 'wenyan'], [/阅读\s*\d+\s*分钟|刷牙洗脸/, 'bedread'], [/数学计算|口算/, 'math'], [/古诗/, 'gushi'], [/错题/, 'mathwrong'], [/课贴|一课一贴/, 'ywtie'],
 ];
 function splitPlan(text) {
   if (/刷牙洗脸/.test(text)) return [text];   // “刷牙洗脸+阅读20分钟”算一项
@@ -843,7 +862,7 @@ function planFromSheet(date, plan, cls, kind) {   // 11/22 家长：完全按课
     const hits = PLAN_MAP.filter(([re]) => re.test(text)).map(h => h[1]);
     let id = hits.length === 1 && !/[，,、；;+＋]/.test(text) ? hits[0] : 'x' + Array.from(text).reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7).toString(36);
     if (used[id]) id = id + '_' + seq; used[id] = 1;
-    const go = /PET/i.test(text) ? 'card' : /KET/i.test(text) ? 'ket' : /听力/.test(text) ? 'media' : /古诗/.test(text) ? 'gushi' : /语文背|文言文/.test(text) ? 'wenyan' : /错题/.test(text) ? 'mathwrong' : /阅读\s*\d+\s*分钟/.test(text) && !/英语/.test(text) ? 'reading' : '';
+    const go = /PET/i.test(text) ? 'card' : /KET/i.test(text) ? 'ket' : /听力/.test(text) ? 'media' : /古诗/.test(text) ? 'gushi' : /课贴|一课一贴/.test(text) ? 'ywtie' : /语文背|文言文/.test(text) ? 'wenyan' : /错题/.test(text) ? 'mathwrong' : /阅读\s*\d+\s*分钟/.test(text) && !/英语/.test(text) ? 'reading' : '';
     const cp = /刷牙洗脸/.test(text) ? [text] : text.split(/[，,、；;]/).map(x => x.trim()).filter(Boolean);   // 有逗号按逗号拆；只有“+”时按“+”拆
     const parts = cp.length > 1 ? cp : /刷牙洗脸/.test(text) ? [] : text.split(/[+＋]/).map(x => x.trim()).filter(Boolean);
     tasks.push({id, label: text, time: st, end: en, plan: en ? `${st}–${en}` : `${st} 起`, seq: seq * 10, type: id.startsWith('x') ? '' : (TYPE[id] || ''), go, dur: 0, hits,
@@ -878,6 +897,7 @@ function partAuto(date, sid) {   // 能自动判断做没做完的小项
   if (sid === 'ket') return ketDoneOn(date);
   if (sid === 'wenyan') return Object.values(DATA.wenyan || {}).includes(date);
   if (sid === 'gushi') return Object.values(DATA.gushi || {}).includes(date);
+  if (sid === 'ywtie') return Object.values(DATA.ywSeen || {}).includes(date);
   if (sid === 'mathwrong') return Object.values(DATA.mw || {}).some(x => x.tries && x.tries[date] !== undefined);
   if (sid === 'bedread' && (DATA.readLog || {})[date]) return true;
   if (sid === 'listen' || sid === 'eread' || sid === 'abc' || sid === 'erecite' || sid === 'homework' || sid === 'bedread' || sid === 'math') return !!((DATA.taskDone[date] || {})[sid]);
@@ -1190,10 +1210,10 @@ function weekInfo(date) {
     total: days.filter(x => x.state !== 'skip').length};
 }
 /* 11/19 家长定的奖励：每日三选一（孩子自己选，记录下来）；周一到周五每天全完成攒 15 分钟周末时间；累计 30 天全部完成 = 成长大奖三选一 */
-const DAILY_OPTS = [['game', '🎮', '游戏时间']];   // 11/24 家长改：全部完成解锁 30 分钟游戏，磨蹭的分钟数扣掉（最少留 10 分钟），替换原来的三选一
+const DAILY_OPTS = [['game', '🎮', '游戏']];   // 11/24 家长改：全部完成解锁 30 分钟游戏，磨蹭的分钟数扣掉（最少留 10 分钟），替换原来的三选一
 /* 11/24 计时：每项打勾后休息 10 分钟，到点自动开始下一项；超出计划时长的分钟数算"磨蹭"，从 30 分钟游戏里扣（最少 10 分钟）
    全部由打勾时刻推算：计时起点 = max(上一项打勾 + 10 分钟, 家长写的开始时间)；孩子提前开始不提前起点（多出的时间归他） */
-const GAME_MAX = 30, GAME_MIN = 10, BREAK_MIN = 10;
+const GAME_MAX = 2, GAME_MIN = 1, LATE_LIMIT = 15, BREAK_MIN = 10;   // 11/25 家长改：全部完成奖励 2 局游戏；磨蹭累计超过 15 分钟只给 1 局
 const hm2ms = (date, hm) => hm ? new Date(date + 'T' + hm + ':00').getTime() : null;
 function planMin(t) {
   if (t.time && t.end && t.end > t.time) { const [a, b] = [t.time, t.end].map(x => +x.slice(0, 2) * 60 + +x.slice(3, 5)); return b - a; }
@@ -1222,7 +1242,7 @@ function timeLedger(date, now) {
     if (now >= S) { const act = Math.round((now - S) / 6e4); run = {...next, act, over: Math.max(0, act - pm)}; }
   }
   const runOver = run ? run.over : 0, all = ts.length > 0 && !left.length;
-  return {items, over, runOver, game: Math.max(GAME_MIN, GAME_MAX - over - runOver), all, next, breakUntil, run, onBreak: !!(breakUntil && now < breakUntil)};
+  return {items, over, runOver, game: over + runOver > LATE_LIMIT ? GAME_MIN : GAME_MAX, all, next, breakUntil, run, onBreak: !!(breakUntil && now < breakUntil)};
 }
 function markStart(date, id, t) { DATA.tStart = DATA.tStart || {}; const d = DATA.tStart[date] = DATA.tStart[date] || {}; if (!d[id] || t < d[id]) d[id] = t; save(); }
 const BIG_OPTS = [['skin', '👑', '王者荣耀皮肤 1 个'], ['meal', '🍖', '一顿大餐'], ['yh', '🛒', '永辉超市零食购一趟']];
@@ -1258,7 +1278,7 @@ LOCAL['POST /api/claim'] = b => {
   if (k !== r.daily.key && String(b.pin) !== String(pin())) return {error: '家长密码不对'};   // 每日奖励孩子自己选，不用家长密码
   let ok = false, note = '';
   const opt = (list, c) => (list.find(o => o[0] === c) || [])[2];
-  if (k === r.daily.key) { ok = r.daily.unlocked && !!opt(DAILY_OPTS, b.choice); const L = timeLedger(date); note = `每日奖励：游戏 ${L.game} 分钟${L.over ? `（磨蹭扣了 ${L.over} 分钟）` : ''}`; }
+  if (k === r.daily.key) { ok = r.daily.unlocked && !!opt(DAILY_OPTS, b.choice); const L = timeLedger(date); note = `每日奖励：游戏 ${L.game} 局${L.over ? `（磨蹭 ${L.over} 分钟）` : ''}`; }
   else if (k === r.weekly.key) { ok = r.weekly.usable; note = `周末奖励：多玩 ${r.weekly.minutes} 分钟`; if (!r.weekly.weekend) return {error: '周六、周日才能用哦'}; }
   else { const m = r.big.items.find(x => x.key === k); ok = m && m.unlocked && !!opt(BIG_OPTS, b.choice); note = '成长大奖：' + opt(BIG_OPTS, b.choice) + (m ? '（' + m.label + '）' : ''); }
   if (!ok) return {error: '还没解锁'};
@@ -1557,7 +1577,10 @@ async function render() {
 }
 
 /* 家长密码弹层 */
-function askPin(title, onOk) {
+async function askPin(title, onOk) {   // 11/25 家长定：不再要家长密码，直接执行
+  const r = await onOk(String(pin())); if (r && r.error) toast(r.error);
+}
+function askPinOld(title, onOk) {
   const bg = document.createElement('div'); bg.className = 'sheet-bg';
   bg.innerHTML = `<div class="sheet"><h2>${esc(title)}</h2><p class="sub" style="margin:6px 0 14px">请家长输入密码确认</p>
     <input id="pinIn" type="password" inputmode="numeric" autocomplete="off" placeholder="家长密码">
@@ -1598,7 +1621,7 @@ function stopTimer() {
   delete DATA.timer; save(); return m;
 }
 setInterval(() => $$('.tmr').forEach(el => { const s = Math.floor((Date.now() - +el.dataset.t0) / 1000); el.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }), 1000);
-const gameMsg = () => { const L = timeLedger(todayIso()); return `游戏时间 ${L.game} 分钟${L.over ? `（磨蹭扣了 ${L.over} 分钟）` : '，一分钟都没扣，真棒！'}；周末再 +${WEEK_MIN} 分钟`; };
+const gameMsg = () => { const L = timeLedger(todayIso()); return `奖励游戏 ${L.game} 局${L.over > LATE_LIMIT ? `（磨蹭了 ${L.over} 分钟，少了 1 局）` : '，真棒！'}；周末再 +${WEEK_MIN} 分钟`; };
 const mmss = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
 setInterval(() => {
   if (state.view !== 'today') return;
@@ -1674,6 +1697,9 @@ function openDictMark(deck, day) {
   };
 }
 /* ---------- 今天：一张总览卡 + 按时段的时间表；全部必做，点任务进对应的学习页 ---------- */
+/* 11/25 家长定：小项显示成短名字（课表原文不动） */
+const SHORT = [[/^背?\s*PET\s*(\d+)\s*个?单词$/i, 'PET$1个单词'], [/^复习?\s*KET\s*(\d+)\s*个?单词$/i, 'KET$1个单词'], [/^一篇英语短文.*$/, '英语短文1篇'], [/^.*(一课一贴|课贴).*$/, '语文课贴1篇']];
+const shortLbl = t => { const x = String(t).trim(); for (const [re, r] of SHORT) if (re.test(x)) return x.replace(re, r); return x; };
 const GO_TASK = {review: 'review', listen: 'media', word: 'card', ket: 'ket', wenyan: 'wenyan', dict: 'dict', bedread: 'reading', gushi: 'gushi', mathwrong: 'mathwrong'};
 async function today() {
   const d = await api('/api/today?date=' + state.date);
@@ -1697,7 +1723,7 @@ async function today() {
     ${backupDue() ? `<div class="warn bkup" id="bkNow" style="margin-top:10px">💾 ${DATA.lastBackup ? `已经 ${diffDays(todayIso(), DATA.lastBackup.slice(0, 10))} 天没备份了` : '还没备份过'}，<b>点这里一键发到微信</b></div>` : ''}
     <div class="hc"><div class="hc-top">${ring(cDone, cTotal)}
       <div class="hc-txt"><b>${cDone === cTotal ? '今天全部完成！' : `还差 ${cTotal - cDone} 项`}</b>
-        <span>${dl.claimed ? '今日奖励已兑现 ✅' : dl.unlocked ? (isToday ? `🎮 游戏 ${TL.game} 分钟已解锁` : '这天已完成') : `做完可玩 🎮 ${TL.game} 分钟${TL.over + TL.runOver ? ` · 磨蹭已扣 ${TL.over + TL.runOver}` : ''}`}</span></div>
+        <span>${dl.claimed ? '今日奖励已兑现 ✅' : dl.unlocked ? (isToday ? `🎮 游戏 ${TL.game} 局已解锁` : '这天已完成') : `做完可玩 🎮 ${TL.game} 局${TL.over + TL.runOver ? ` · 已磨蹭 ${TL.over + TL.runOver} 分（超 ${LATE_LIMIT} 分少 1 局）` : ''}`}</span></div>
       ${dl.unlocked && !dl.claimed && isToday ? '<button class="btn sm" id="claimDaily">去领取</button>' : ''}</div>
       ${status}
       <div class="wk" id="openWeek">${w.days7.map((z, i) => `<i class="${z.state} ${i >= 5 ? 'we' : ''}">${z.state === 'full' ? '✓' : z.label}</i>`).join('')}
@@ -1727,13 +1753,13 @@ async function today() {
     return `<div style="--i:${ri++};--c:${bgc}" class="tt ${t.done ? 'done' : ''} ${now ? 'now' : ''} ${t.type === 'class' ? 'cls' : ''}" data-task="${t.id}" data-done="${t.done ? 0 : 1}" data-type="${t.type}" ${goTo && !t.done ? `data-go="${goTo}"` : ''}>
       <span class="tico">${em}</span>
       <div class="tt-mid">${t.parts && t.type !== 'class' ? '' : `<b>${t.type === 'class' ? '<span class="tag cls">课</span>' : ''}${esc(t.label)}</b>`}
-        ${t.parts ? `<div class="pts" data-nogo="1">${t.parts.map(p => `<button class="pt ${p.done || t.done ? 'on' : ''}" data-part="${p.key}" data-sid="${p.sid}" data-line="${t.id}" data-pdone="${p.done || t.done ? 0 : 1}">${p.done || t.done ? '✓' : '○'} ${esc(p.label)}</button>`).join('')}</div>` : ''}
+        ${t.parts ? `<div class="pts" data-nogo="1">${t.parts.map(p => `<button class="pt ${p.done || t.done ? 'on' : ''}" data-part="${p.key}" data-sid="${p.sid}" data-line="${t.id}" data-pdone="${p.done || t.done ? 0 : 1}">${p.done || t.done ? '✓' : '○'} ${esc(shortLbl(p.label))}</button>`).join('')}</div>` : ''}
         ${t.type === 'review' && pend.length ? `<small>${pend.map(v => `<span class="pill" data-rv="${v.day}">复习 Day ${v.day}</span>`).join('')}</small>` : ''}
         ${t.type === 'class' ? '' : `<span class="act">${act}</span>`}</div>
       ${t.type === 'class' ? '' : (() => { const run = DATA.timer && DATA.timer.date === d.date && DATA.timer.id === t.id;   // 右边：开始/计时（只在现在这项）+ 实际用时（家长填）
         const dAt = +((DATA.taskDone[d.date] || {})[t.id]) > 1e12 ? new Date(+DATA.taskDone[d.date][t.id]).toTimeString().slice(0, 5) : '';
         return `<div class="tt-r" data-nogo="1">${t.done ? `<span class="tm2 okd">✓ 已完成${dAt ? ' ' + dAt : ''}</span>` : sb ? `<span class="tm2">${sb}</span>` : ''}
-          <label class="amin">实际用时<span><input type="number" inputmode="numeric" min="0" max="300" data-min="${t.id}" value="${minOf(d.date, t.id) ?? ''}" placeholder="—">分</span></label></div>`; })()}
+          <label class="amin"><span><input type="number" inputmode="numeric" min="0" max="300" data-min="${t.id}" value="${minOf(d.date, t.id) ?? ''}" placeholder="—">分</span></label></div>`; })()}${t.type === 'class' && t.time ? `<div class="tt-r"><span class="tm2">${t.time}${t.end ? '–' + t.end : ''}</span></div>` : ''}
       ${t.type === 'class' ? '' : `<span class="check" data-tick="1">${t.done ? '✓' : ''}</span>`}</div>`;
   };
   const rest = z => `<div class="rest2"><span>${z.sleep ? esc(z.text) : `☕ ${z.text ? esc(z.text).replace(/，.*$/, '') : `休息 ${z.dur} 分钟`}`}</span></div>`;
@@ -1774,10 +1800,11 @@ async function today() {
   const openTask = g => {
     if (g === 'media') { state.mcat = 'en'; go('media'); }
     else if (g === 'card') { state.cardDay = c.day; state.mode = 'all'; state.deck = 'pet'; go('words'); }
-    else if (g === 'ket') { state.deck = 'ket'; go('words'); }
+    else if (g === 'ket') { state.deck = 'ket'; state.ketDay = null; go('words'); }
     else if (g === 'wenyan') { state.wy = d.wenyan.items.length === 1 ? d.wenyan.items[0].idx : null; go('wenyan'); }
     else if (g === 'dict') { state.di = 0; go('dict'); }
     else if (g === 'gushi') { state.ywTab = 'gs'; state.gs = null; go('wenyan'); }
+    else if (g === 'ywtie') { state.ywTab = 'yw'; state.ywi = null; go('wenyan'); }
     else if (g === 'mathwrong') { state.mwi = null; go('mathw'); }
     else if (g === 'reading') { state.rdDay = 't'; state.rdEdit = false; state.rdForm = null; go('reading'); }
     else if (g === 'review' && pend.length) { state.cardDay = pend[0].day; state.mode = 'zh'; state.deck = 'pet'; go('words'); }
@@ -2101,8 +2128,31 @@ async function words() {
 
 /* ---------- KET 复习：认识 ✓ / 不认识 ✗，点了才显示中文 ---------- */
 function ketMarks(date) { DATA.ketMarks = DATA.ketMarks || {}; return (DATA.ketMarks[date] = DATA.ketMarks[date] || {}); }
+/* 11/25 家长要：KET 也像 PET 一样有「全部 N 天」格子，点哪天看哪天的词 */
+function ketGrid(cur) {
+  const st = ketState();
+  return `<div class="sec-title">全部 ${KET.length} 天 · 已复习 ${Object.keys(st.done).length} 天</div>
+    <div class="card"><div class="grid">${KET.map(k => `<button data-kday="${k.day}" class="${st.done[k.day] ? 'l' : ''} ${k.day === cur ? 'cur' : ''}">${st.done[k.day] ? '✓' : ''}${k.day}</button>`).join('')}</div>
+    <div class="faint" style="margin-top:12px">绿色带 ✓ = 已复习 · 紫框 = 正在看的这天 · 点任意一天看那天的词</div></div>`;
+}
+function bindKetGrid(today) { $$('[data-kday]').forEach(b => b.onclick = () => { const d = +b.dataset.kday; state.ketDay = d === today ? null : d; render(); scrollTo(0, 0); }); }
+async function ketDayView(d, today) {
+  const st = ketState(), k = KET[d - 1], done = st.done[d];
+  let x = deckSeg() + `<div class="card hero-card wd-hero ket"><div class="sub">${done ? `✓ 已复习 ${done.slice(5).replace('-', '/')}` : d < (today || 1e9) ? '还没复习' : '还没到这天'}</div><h1 class="wd-h">KET Day ${d}</h1>
+      <div class="row" style="gap:6px;margin-top:8px"><span class="tag">共 ${KET.length} 天</span><span class="tag">${k.words.length} 个词</span></div></div>
+    <div class="row between" style="margin:4px 0 10px"><button class="btn soft sm" id="kpd" ${d <= 1 ? 'disabled' : ''}>‹ Day ${d - 1}</button>${today ? `<button class="btn soft sm" id="ktd">回到今天 Day ${today}</button>` : ''}<button class="btn soft sm" id="knd" ${d >= KET.length ? 'disabled' : ''}>Day ${d + 1} ›</button></div>
+    <div class="card" style="padding:4px 16px">${k.words.map((w, i) => `<div class="wrow kr"><span class="n">${i + 1}</span><div class="en"><b>${esc(w.w)}</b><span>${esc(w.ipa || '')}</span></div><div class="zh"><span class="clamp" data-clamp>${esc(w.zh)}</span></div><div class="row" style="gap:6px"><button class="say" data-say="${esc(w.w)}">🔊</button></div></div>`).join('')}</div>` + ketGrid(d);
+  app.innerHTML = x;
+  bindDeck(); bindKetGrid(today);
+  $$('[data-say]').forEach(b => b.onclick = () => sayEn(b.dataset.say));
+  $$('[data-clamp]').forEach(el => el.onclick = () => el.classList.toggle('open'));
+  $('#kpd').onclick = () => { state.ketDay = d - 1 === today ? null : d - 1; render(); };
+  $('#knd').onclick = () => { state.ketDay = d + 1 === today ? null : d + 1; render(); };
+  if ($('#ktd')) $('#ktd').onclick = () => { state.ketDay = null; render(); };
+}
 async function ketView() {
   const t = todayIso(), s = ketSession(t), marks = ketMarks(t);
+  if (state.ketDay && state.ketDay !== s.day) return ketDayView(state.ketDay, s.day);
   const items = [...s.due.map(w => ({...w, due: true})), ...s.words];
   const n = items.filter(w => w.w in marks).length, ok = items.filter(w => marks[w.w] === 1).length;
   let x = deckSeg() + `<div class="card hero-card wd-hero ket"><div class="row between" style="align-items:flex-start"><div><div class="sub">以前背过的，快速过一遍</div><h1 class="wd-h">KET 复习${s.day ? ' Day ' + s.day : ''}</h1></div><span class="wd-pet">🐱</span></div>
@@ -2121,9 +2171,10 @@ async function ketView() {
           <div class="row" style="gap:6px"><button class="say" data-say="${esc(w.w)}">🔊</button>${m === undefined ? `<button class="say" data-k="${i}:1" style="background:var(--ok-soft);color:var(--ok)">✓</button><button class="say" data-k="${i}:0" style="background:var(--warn-soft);color:var(--warn)">✗</button>` : ''}</div></div>`;
       }).join('') + `</div>`;
   }
+  x += ketGrid(s.day);
   const y = scrollY;
   app.innerHTML = x; scrollTo(0, y);
-  bindDeck();
+  bindDeck(); bindKetGrid(s.day);
   $$('[data-say]').forEach(b => b.onclick = () => { sayEn(b.dataset.say); b.classList.add('playing'); setTimeout(() => b.classList.remove('playing'), 1400); });
   if ($('#dmGo')) $('#dmGo').onclick = () => openDictMark('ket');
   $$('[data-clamp]').forEach(el => el.onclick = () => el.classList.toggle('open'));
@@ -2392,7 +2443,7 @@ async function mathView() {
   if (due.length) x += `<div class="sec-title">今天要做</div><div class="card"><div class="tiles" style="margin-top:0">${due.map(tile).join('')}</div></div>`;
   const rest = info.filter(([, f]) => !f.dueNow);
   if (rest.length) x += `<div class="sec-title">全部错题</div><div class="card"><div class="tiles" style="margin-top:0">${rest.map(tile).join('')}</div></div>`;
-  x += `<details class="card grp"><summary><span>➕ 家长添加新错题</span><span class="faint">要家长密码</span></summary>
+  x += `<details class="card grp"><summary><span>➕ 家长添加新错题</span><span class="faint">展开</span></summary>
     <div style="display:grid;gap:8px;margin-top:8px"><textarea id="mq" rows="3" placeholder="题目（照抄）"></textarea><input id="mt" placeholder="题型，如：行程·追及">
       <input id="mh1" placeholder="提示①（先想什么）"><input id="mh2" placeholder="提示②（再想什么）"><textarea id="ms" rows="2" placeholder="解题思路（只给家长看）"></textarea><input id="ma" placeholder="答案">
       <button class="btn sm" id="mAdd">添加</button></div></details>`;
@@ -2497,11 +2548,11 @@ function parentExtraCards(t) {
       <input id="sck" placeholder="考试，如：期中" style="grid-column:1/3"><input id="scv" type="number" inputmode="decimal" placeholder="分数"><input id="scf" type="number" inputmode="decimal" value="100" placeholder="满分"></div>
     <button class="btn sm" id="scAdd" style="margin-top:10px">录入</button></div>`;
   const TLt = timeLedger(t), hhmm = ms => ms ? new Date(ms).toTimeString().slice(0, 5) : '—';
-  const timeCard = `<div class="card"><div class="row between"><h2>⏱ 今天计时</h2><span class="faint">游戏 ${TLt.game} 分钟 · 磨蹭扣 ${TLt.over + TLt.runOver}</span></div>
+  const timeCard = `<div class="card"><div class="row between"><h2>⏱ 今天计时</h2><span class="faint">游戏 ${TLt.game} 局 · 磨蹭 ${TLt.over + TLt.runOver} 分</span></div>
     ${TLt.items.length ? TLt.items.map(z => `<div class="row between" style="padding:7px 0;border-top:1px solid var(--line);font-size:14px"><span style="flex:1;min-width:0">${esc(z.label)}</span><span class="faint" style="white-space:nowrap">${hhmm(z.start)}–${hhmm(z.done)} · 计划 ${z.plan} · 用 ${z.act ?? '—'}${z.over ? ` · <b style="color:var(--warn)">扣 ${z.over}</b>` : ''}</span></div>`).join('')
       : '<div class="sub" style="margin-top:8px">今天还没有打勾的任务。每项打勾后自动休息 10 分钟，到点自动开始下一项的计时。</div>'}
     <div class="faint" style="margin-top:8px">计划 = 课表里写的时间段（没写的用默认时长）；开始 = 上一项打勾 + 10 分钟休息（家长写的开始时间更晚就按家长写的；孩子提前点「开始」就按点的时刻）</div></div>`;
-  return timeCard + readCard + mathCard + scoreCard;
+  return {timeCard, readCard, mathCard, scoreCard};
 }
 function bindParentExtra() {
   if ($('#scAdd')) $('#scAdd').onclick = () => {
@@ -2609,12 +2660,12 @@ async function rewards() {
       <div style="text-align:center"><div style="font-size:26px">🔥</div><b>${streak(t)}</b><div style="font-size:11px;opacity:.85">连续天</div></div></div>
       <div class="lvbar"><i style="width:${Math.round(L.pct * 100)}%"></i></div></div>
 
-    <div class="rw rw-d ${dl.unlocked && !dl.claimed ? 'on' : ''}"><div class="row between"><span class="tag">今日奖励</span><span class="faint">${dl.claimed ? '已领取' : `今天有效 · 🎮 游戏 ${GL.game} 分钟`}</span></div>
+    <div class="rw rw-d ${dl.unlocked && !dl.claimed ? 'on' : ''}"><div class="row between"><span class="tag">今日奖励</span><span class="faint">${dl.claimed ? '已领取' : `今天有效 · 🎮 游戏 ${GL.game} 局`}</span></div>
       ${dl.claimed ? `<div class="big">✅ ${esc(dl.claimed.note.replace('每日奖励：', ''))}</div><div class="sub">今天选好啦，明天继续！</div>`
         : `<div class="charge ${dl.unlocked ? 'full' : ''}"><i style="width:${Math.max(6, pct * 100)}%"></i><b>${dl.unlocked ? '⚡ 充满啦！' : `⚡ 充能 ${cDone}/${cTotal} · 再做 ${cTotal - cDone} 项`}</b></div>`}
-      ${dl.claimed ? '' : `<button class="btn block" data-dopt="game" style="margin-top:12px" ${dl.unlocked ? '' : 'disabled'}>🎮 ${dl.unlocked ? `领取 ${GL.game} 分钟游戏时间` : `全部完成可玩 ${GL.game} 分钟`}</button>`}
-      <div class="gled">${GL.items.filter(z => z.over).map(z => `<div><span>${esc(z.label)}</span><span>计划 ${z.plan} · 用了 ${z.act} · 扣 ${z.over}</span></div>`).join('') || '<div><span>每项按时做完、休息 10 分钟后马上开始，就一分钟都不扣</span></div>'}
-        <div><span>满分 ${GAME_MAX} 分钟 · 磨蹭扣 ${GL.over + GL.runOver} · 最少留 ${GAME_MIN}</span><b>${GL.game} 分钟</b></div></div></div>
+      ${dl.claimed ? '' : `<button class="btn block" data-dopt="game" style="margin-top:12px" ${dl.unlocked ? '' : 'disabled'}>🎮 ${dl.unlocked ? `领取 ${GL.game} 局游戏` : `全部完成可玩 ${GL.game} 局`}</button>`}
+      <div class="gled">${GL.items.filter(z => z.over).map(z => `<div><span>${esc(z.label)}</span><span>计划 ${z.plan} · 用了 ${z.act} · 超 ${z.over} 分</span></div>`).join('') || '<div><span>每项按时做完、休息 10 分钟后马上开始，就能拿满 2 局</span></div>'}
+        <div><span>全部完成 ${GAME_MAX} 局 · 磨蹭超过 ${LATE_LIMIT} 分钟只有 ${GAME_MIN} 局 · 今天磨蹭 ${GL.over + GL.runOver} 分</span><b>${GL.game} 局</b></div></div></div>
 
     <div class="rw rw-w ${wk.usable && !wk.claimed ? 'on' : ''}"><div class="row between"><span class="tag">周末奖励</span><span class="faint">每天全完成 +${WEEK_MIN} 分钟</span></div>
       <div class="big">🎮 已攒 <span class="cnt" data-to="${wk.minutes}">${wk.minutes}</span> 分钟</div>
@@ -2638,7 +2689,7 @@ async function rewards() {
   $$('[data-dopt]').forEach(b => b.onclick = async () => {   // 每日奖励：孩子自己选，直接记录
     const o = DAILY_OPTS.find(z => z[0] === b.dataset.dopt), res = await api('/api/claim', {key: dl.key, choice: o[0]});
     if (res.error) { toast(res.error); return; }
-    render(); setTimeout(() => bigCelebrate('🎮', `游戏 ${GL.game} 分钟，去玩吧！`, GL.over ? `今天磨蹭扣了 ${GL.over} 分钟，明天抓紧一点就能玩满 ${GAME_MAX} 分钟` : '一分钟都没扣，太棒了！'), 50);
+    render(); setTimeout(() => bigCelebrate('🎮', `游戏 ${GL.game} 局，去玩吧！`, GL.game < GAME_MAX ? `今天磨蹭了 ${GL.over} 分钟，明天抓紧一点就能拿 ${GAME_MAX} 局` : '一点没磨蹭，太棒了！'), 50);
   });
   if ($('#cW')) $('#cW').onclick = () => claim(wk.key, `周末多玩 ${wk.minutes} 分钟`, `周末多玩 ${wk.minutes} 分钟！`, 'week');
   $$('[data-bopt]').forEach(b => b.onclick = () => { const o = BIG_OPTS.find(z => z[0] === b.dataset.bopt); claim(ready[0].key, o[2], o[2] + '，到手！', o[0]); });
@@ -2683,44 +2734,51 @@ async function parent() {
     ${avgs.length ? `<div class="dbar">${days7.map((d, i) => `<div><i style="height:${Math.max(4, dayTot[i] / dmx * 100)}%"></i><b>${dayTot[i] || ''}</b>${'日一二三四五六'[new Date(d + 'T00:00').getDay()]}</div>`).join('')}</div>
       <div class="faint" style="margin:14px 0 4px">各项平均用时（分钟）</div>
       ${avgs.map(a => `<div class="hb"><span>${esc(a.label)}</span><div><i style="width:${a.avg / mx * 100}%"></i></div><b>${a.avg}</b></div>`).join('')}`
-      : '<div class="sub" style="margin-top:6px">在「今天」页每项任务下面的「⏱ 用时」填上分钟数，这里就会出现每天总用时和各项平均用时。</div>'}</div>`;
+      : '<div class="sub" style="margin-top:6px">在「今天」页每项任务右边的「— 分」填上实际用时，这里就会出现每天总用时和各项平均用时。</div>'}</div>`;
   const cl = Object.entries(DATA.claims || {}).map(([key, v]) => ({key, ...v})).sort((a, b) => b.at - a.at);
-  const gm = cl.filter(c => /^每日奖励：游戏 \d+ 分钟/.test(c.note)).map(c => +c.note.match(/游戏 (\d+)/)[1]), gk = cl.filter(c => /^每日奖励：游戏/.test(c.note)).map(c => +((c.note.match(/扣了 (\d+)/) || [0, 0])[1]));
-  const cnt = [['🎮', '领游戏', gm.length], ['⏱', '平均分钟', gm.length ? Math.round(gm.reduce((a, b) => a + b, 0) / gm.length) : 0], ['🐢', '磨蹭共扣', gk.reduce((a, b) => a + b, 0)]];
-  const rewardCard = `<div class="card"><div class="row between"><h2>🎁 孩子选的奖励</h2><span class="faint">共 ${cl.length} 次</span></div>
+  const gm = cl.filter(c => /^每日奖励：游戏 \d+ 局/.test(c.note)).map(c => +c.note.match(/游戏 (\d+)/)[1]);
+  const cnt = [['🎮', '领游戏天数', gm.length], ['✌️', '拿满 2 局', gm.filter(n => n >= 2).length], ['🐢', '只有 1 局', gm.filter(n => n < 2).length]];
+  const rewardCard = `<div class="card"><div class="row between"><h2>🎮 游戏记录</h2><span class="faint">共 ${cl.length} 次</span></div>
     <div class="pstat" style="margin-top:12px">${cnt.map(([ic, nm, n]) => `<div><b>${n}</b>${ic} ${nm.replace('王者荣耀', '')}</div>`).join('')}</div>
     ${cl.slice(0, 5).map(c => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--line);margin-top:6px"><span style="font-size:14px">${esc(c.note)}</span><span class="faint">${c.date.slice(5).replace('-', '/')}</span></div>`).join('')}</div>`;
   const prog = (name, n, total, col) => `<div style="margin-top:12px"><div class="row between"><span>${name}</span><span class="faint">${n} / ${total}</span></div><div class="bar" style="margin-top:6px"><i style="width:${total ? Math.min(100, n / total * 100) : 0}%;${col ? 'background:' + col : ''}"></i></div></div>`;
-  let x = `<div style="margin-top:6px"><div class="sub">只给家长看</div><h1>家长看板</h1></div>
-    <div class="card hero-card"><div class="hero">${ring(tt.length - left.length, tt.length)}
-      <div style="flex:1;min-width:0"><h2>${left.length ? `今天还差 ${left.length} 项` : '今天全部完成 🎉'}</h2>
-        <div class="sub" style="margin-top:4px">今天用时 <b style="color:#fff" class="cnt" data-to="${todayMin}">${todayMin}</b> 分钟${todayMinN ? `（填了 ${todayMinN} 项）` : ''}</div></div></div>
-      ${left.length ? `<div class="chips">${left.map(z => `<span>${esc(z.label)}</span>`).join('')}</div>` : ''}
-      <div class="pstat"><div><b class="cnt" data-to="${s.streak}">${s.streak}</b>连续天</div><div><b class="cnt" data-to="${bestStreak()}">${bestStreak()}</b>最长连续</div><div><b>${L.ic}</b>Lv${L.lv} ${L.name}</div><div><b class="cnt" data-to="${s.earned}">${s.earned}</b>星星</div></div></div>
-    ${weekCard(t)}${minCard}${finCard}${parentExtraCards(t)}${wrongCard}${rewardCard}
+  const EX = parentExtraCards(t), TLp = timeLedger(t), pt = state.ptab || 'today';
+  const tabs = [['today', '今天'], ['study', '学习'], ['score', '成绩'], ['set', '设置']];
+  const sec = (k, html) => `<section class="ptab" ${pt === k ? '' : 'hidden'}>${html}</section>`;
+  let x = `<div class="ph"><div><div class="sub">家长看板</div><h1>${md(t)} ${WD[isoWeekday(t)]}</h1></div><span class="th-chips"><span style="color:var(--warn)">🔥 ${s.streak}</span></span></div>
+    <div class="seg ptabs">${tabs.map(([k, n]) => `<button data-pt="${k}" class="${pt === k ? 'on' : ''}">${n}</button>`).join('')}</div>`;
+  x += sec('today', `<div class="card psum">
+      <div class="pgrid"><div><b>${tt.length - left.length}<small>/${tt.length}</small></b>今天完成</div><div><b>${TLp.game}<small> 局</small></b>游戏</div><div><b class="${TLp.over + TLp.runOver > LATE_LIMIT ? 'bad' : ''}">${TLp.over + TLp.runOver}<small> 分</small></b>磨蹭</div><div><b>${todayMin}<small> 分</small></b>实际用时</div></div>
+      ${left.length ? `<div class="pleft"><span class="faint">还没做：</span>${left.map(z => `<em>${esc(z.label)}</em>`).join('')}</div>` : '<div class="pleft ok">✓ 今天全部完成</div>'}</div>
     ${s.reviews_pending ? `<div class="warn">📌 有 ${s.reviews_pending} 张单词卡到了复习时间还没复习</div>` : ''}
+    ${EX.timeCard}${finCard}
     <div class="card"><h2>最近 7 天</h2>
       <div class="d7">${days7.map(d => { const [n, tot] = dayProgress(d), f = coreFull(d); return `<div><i class="${f ? 'full' : d === t ? 'today' : n ? 'part' : ''}" style="--p:${tot ? n / tot : 0}">${f ? '✓' : tot ? Math.round(n / tot * 100) + '%' : ''}</i>${'日一二三四五六'[new Date(d + 'T00:00').getDay()]}</div>`; }).join('')}</div>
       ${missTop.length ? `<div class="faint" style="margin-top:12px">最常没做完：${missTop.map(([k, v]) => `${esc(k)} ${v} 次`).join('、')}</div>` : '<div class="faint" style="margin-top:12px">还没有往日数据</div>'}</div>
-    <div class="card"><h2>学习进度</h2>
+    ${weekCard(t)}`);
+  x += sec('study', `    <div class="card"><h2>学习进度</h2>
       ${prog('PET 单词卡', s.words_learned, s.cards_total)}${prog('KET 复习', ketDone, (CONTENT.ket || []).length, 'var(--gold)')}${prog('文言文背会', s.wenyan_memorized, s.wenyan_total, 'var(--ok)')}${prog('古诗背会（四下–六下）', GS.new.filter(p => gsHas(p.t, 2)).length, GS.new.length, 'var(--ok)')}${prog('已学古诗复背过', GS.old.filter(o => gsHas(o, 'r')).length, GS.old.length, 'var(--gold)')}</div>
+    ${EX.readCard}${EX.mathCard}${wrongCard}${minCard}
     ${s.history.length > 7 ? `<div class="card"><h2>最近 ${s.history.length} 天</h2><div class="hist">` +
     s.history.map(h => `<i class="${h.total && h.done === h.total ? 'full' : ''}" style="height:${h.total ? Math.max(5, h.done / h.total * 100) : 5}%"></i>`).join('') +
     `</div><div class="row between faint" style="margin-top:6px"><span>${s.history[0] ? s.history[0].date.slice(5).replace('-', '/') : ''}</span><span>今天</span></div></div>` : ''}
+`);
+  x += sec('score', `${EX.scoreCard}${rewardCard}
     <details class="card grp"><summary><span>⭐ 星星明细</span><span class="faint">共 ${s.earned} 颗</span></summary>
       ${s.recent.slice(0, 15).map(r => `<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><span style="font-size:14px">${esc(r.note)}</span><span class="faint">${r.date.slice(5).replace('-', '/')} +${r.amount}</span></div>`).join('') || '<div class="faint" style="padding-bottom:12px">还没有</div>'}</details>
 
-    <div class="card"><div class="row between"><h2>☁️ 云同步</h2><span class="tag" style="${CFG && CFG.gt ? 'background:var(--ok-soft);color:var(--ok)' : 'background:var(--warn-soft);color:var(--warn)'}">${CFG && CFG.gt ? '已开启' : '未开启'}</span></div>
+`);
+  x += sec('set', `    <div class="card"><div class="row between"><h2>☁️ 云同步</h2><span class="tag" style="${CFG && CFG.gt ? 'background:var(--ok-soft);color:var(--ok)' : 'background:var(--warn-soft);color:var(--warn)'}">${CFG && CFG.gt ? '已开启' : '未开启'}</span></div>
       <div class="sub" style="margin:4px 0 12px">${CFG && CFG.gt ? `打卡记录加密后自动存到网上，手机、电脑、平板看到同一份，换设备也不丢。上次同步：${DATA.cloudAt ? new Date(DATA.cloudAt).toLocaleString('zh-CN', {month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}) : '还没有'}${cloudLast ? `<br><span style="color:var(--warn)">上次没连上（${esc(cloudLast)}），联网后会自动再试</span>` : ''}` : '还没开启：记录只存在这台设备上。请家长导入带云同步的设置链接。'}</div>
       ${CFG && CFG.gt ? '<button class="btn soft sm" id="cloudNow">立即同步</button>' : ''}</div>
     <div class="card"><div class="row between"><h2>🛟 保底模式</h2><span class="tag" style="${isLite(t) ? 'background:var(--warn-soft);color:var(--warn)' : ''}">${isLite(t) ? '今天已开启' : '未开启'}</span></div>
       <div class="sub" style="margin:4px 0 12px">有晚课、太累或生病时用：今天只做「学校作业 + PET 单词 + 阅读」，做完就算全部完成，奖励和连续天数照算。</div>
       <button class="btn ${isLite(t) ? 'soft' : ''} sm" id="liteBtn">${isLite(t) ? '关掉，恢复完整任务' : '今天开启保底模式'}</button></div>
     <details class="card grp" id="tcBox"><summary><span>📝 任务设置（晚上）</span><span class="faint">开关 · 改名 · 排序</span></summary>
-      <div class="sub" style="margin:2px 0 8px">关掉的任务就不出现；名字留空用默认；↑↓ 调顺序。保存要家长密码。</div>
+      <div class="sub" style="margin:2px 0 8px">关掉的任务就不出现；名字留空用默认；↑↓ 调顺序。</div>
       <div id="tcList">${eveOrder().map(id => tcRow(id)).join('')}</div>
       <div class="row" style="margin:12px 0 14px"><button class="btn sm" id="tcSave">保存</button><button class="btn soft sm" id="tcReset">恢复默认</button></div></details>
-    <details class="setbox"><summary class="sec-title">⚙️ 设置、素材链接与备份</summary>
+    <details class="card grp"><summary><span>📺 素材链接 · 导入 · 备份</span><span class="faint">展开</span></summary>
     <div class="card"><h2>📺 素材库链接</h2>
       ${listenLinks().map((l, k) => `<div class="row between" style="padding:8px 0;border-top:1px solid var(--line)"><span>${CATS.find(c => c[0] === catOf(l))[1]} ${esc(l.name)}</span><button class="btn soft sm" data-ldel="${k}">删除</button></div>`).join('') || '<div class="sub" style="margin-top:4px">还没有</div>'}
       <div class="faint" style="margin:12px 0 8px">抖音打开合集 → 分享 → 复制链接，整段粘贴到下面，再起个名字</div>
@@ -2732,20 +2790,20 @@ async function parent() {
     <div class="card"><h2>📦 导入设置 / 链接包</h2><div class="sub" style="margin:4px 0 10px">更新任务表、批量加链接时，把 Claude 给的那条长链接粘贴到这里</div>
       <textarea id="pk" rows="3" style="font-size:12px" placeholder="粘贴 https://…#setup=… 整条"></textarea>
       <button class="btn sm" id="pkGo" style="margin-top:10px">导入</button></div>
-    <div class="card"><h2>🔑 修改家长密码</h2><input id="np" type="password" inputmode="numeric" placeholder="新密码（至少 4 位）" style="margin-top:10px"><button class="btn sm" id="setpin" style="margin-top:10px">修改</button></div>
     <div class="card"><h2>💾 备份（建议每周一次）</h2>
       <div class="sub" style="margin-top:4px">打卡记录只存在这部手机里。换手机或清理 Safari 数据前，先导出备份。</div>
       <div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn sm" id="exp">导出备份</button>
       <label class="btn soft sm">导入备份文件<input type="file" id="impf" accept=".json,application/json,text/plain" hidden></label></div>
       <textarea id="bk" rows="3" style="margin-top:10px;font-size:12px" placeholder="也可以把备份文字粘贴到这里"></textarea>
       <button class="btn soft sm" id="impt" style="margin-top:8px">用粘贴的文字恢复</button>
-      <div class="faint" style="margin-top:8px">上次备份：${DATA.lastBackup ? DATA.lastBackup.slice(5).replace('-', '/') : '还没有'}${backupDue() ? ' <b style="color:var(--warn)">· 该备份了</b>' : ''}　上次保存：${DATA.savedAt ? esc(new Date(DATA.savedAt).toLocaleString('zh-CN', {hour12: false}).slice(0, -3)) : '还没有'}</div></div></details>`;
+      <div class="faint" style="margin-top:8px">上次备份：${DATA.lastBackup ? DATA.lastBackup.slice(5).replace('-', '/') : '还没有'}${backupDue() ? ' <b style="color:var(--warn)">· 该备份了</b>' : ''}　上次保存：${DATA.savedAt ? esc(new Date(DATA.savedAt).toLocaleString('zh-CN', {hour12: false}).slice(0, -3)) : '还没有'}</div></div></details>`);
   app.innerHTML = x;
+  $$('[data-pt]').forEach(b => b.onclick = () => { state.ptab = b.dataset.pt; render(); scrollTo(0, 0); });
   $('#luSave').onclick = () => { const u = $('#lu').value, n = $('#ln').value; if (!u.trim() || (!n.trim() && !/#setup=/.test(u))) { toast('链接和名字都要填'); return; } askPin('添加素材', async p => { const r = await api('/api/listen', {pin: p, url: u, name: n, cat: $('#lc').value}); if (!r.error) { toast(r.imported ? '链接包导入成功' : '已添加'); render(); } return r; }); };
   $('#recGo').onclick = () => askPin('导入推荐素材', async p => { const r = await api('/api/listen/recommended', {pin: p}); if (!r.error) { toast(r.added ? `已导入 ${r.added} 个` : '都已经有了'); render(); } return r; });
   $('#pkGo').onclick = () => { const v = $('#pk').value; if (!v.trim()) { toast('请先粘贴'); return; } askPin('导入设置 / 链接包', async p => { if (String(p) !== String(pin())) return {error: '家长密码不对'}; if (!applySetupCode(v)) return {error: '内容不完整，请重新复制整条'}; toast('导入成功'); render(); return {ok: true}; }); };
   $$('[data-ldel]').forEach(b => b.onclick = () => askPin('删除这个链接', async p => { const r = await api('/api/listen/del', {pin: p, idx: b.dataset.ldel}); if (!r.error) { toast('已删除'); render(); } return r; }));
-  $('#setpin').onclick = () => { const v = $('#np').value; if (v.trim().length < 4) { toast('新密码至少 4 位'); return; } askPin('先输入原密码', async p => { const r = await api('/api/pin', {pin: p, newpin: v}); if (!r.error) { toast('密码已修改'); render(); } return r; }); };
+  if ($('#setpin')) $('#setpin').onclick = () => { const v = $('#np').value; if (v.trim().length < 4) { toast('新密码至少 4 位'); return; } askPin('先输入原密码', async p => { const r = await api('/api/pin', {pin: p, newpin: v}); if (!r.error) { toast('密码已修改'); render(); } return r; }); };
   if ($('#wsShare')) $('#wsShare').onclick = () => shareWeek(t);
   if ($('#wsBk')) $('#wsBk').onclick = async () => { if (await doBackup()) render(); else toast('这台设备发不了文件，请到下面「设置」里导出'); };
   if ($('#cloudNow')) $('#cloudNow').onclick = async () => { toast('正在同步…'); await cloudSync(); toast(cloudLast ? '没连上，稍后再试' : '同步好了 ☁️'); render(); };
